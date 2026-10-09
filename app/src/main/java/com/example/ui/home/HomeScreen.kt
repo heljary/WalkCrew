@@ -19,13 +19,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.DirectionsWalk
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.Icon
@@ -45,10 +46,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.data.DailyStepData
+import com.example.data.HealthConnectState
+import com.example.data.UserStats
 import com.example.health.HealthConnectManager
 import com.example.ui.components.Avatar
 import com.example.ui.components.PrimaryButton
@@ -59,6 +64,10 @@ import com.example.ui.components.StepRing
 import com.example.ui.theme.CardShape
 import com.example.ui.theme.Spacing
 import com.example.ui.theme.WalkCrewTheme
+import com.example.ui.util.DevicePreviews
+import com.example.ui.util.FontScalePreviews
+import com.example.ui.util.ThemePreviews
+import com.example.ui.util.rememberResponsiveLayoutInfo
 import kotlinx.coroutines.delay
 import java.text.NumberFormat
 import java.time.LocalTime
@@ -77,6 +86,10 @@ fun HomeScreen(
     val userProfile by viewModel.userProfile.collectAsState()
     val userName = userProfile?.displayName ?: "Alex"
     val avatarColorIndex = userProfile?.avatarColorIndex ?: 2
+
+    val layoutInfo = rememberResponsiveLayoutInfo()
+    val isNarrow = layoutInfo.screenWidthDp < 340.dp
+    val isLandscapeMode = layoutInfo.isLandscape && !layoutInfo.isExpandedWidth
 
     // Refresh step data whenever app resumes
     LifecycleResumeEffect(Unit) {
@@ -102,157 +115,281 @@ fun HomeScreen(
         }
     }
 
-    Column(
+    val dailyGoal = userProfile?.dailyStepGoal ?: stats.goal
+
+    Box(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = Spacing.screenHorizontal)
-            .padding(top = 16.dp, bottom = 100.dp) // Leave room for floating pill nav bar
+            .statusBarsPadding(),
+        contentAlignment = Alignment.TopCenter
     ) {
-        // Section 1: Top Row (Greeting & Avatar)
-        StaggeredEntrance(index = 0) {
-            Row(
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .widthIn(max = if (isLandscapeMode) 960.dp else 640.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = Spacing.screenHorizontal)
+                .padding(top = 16.dp, bottom = 100.dp) // Space for floating pill nav bar
+        ) {
+            // Section 1: Top Row (Greeting & Avatar)
+            StaggeredEntrance(index = 0) {
+                GreetingRow(
+                    greeting = greeting,
+                    userName = userName,
+                    avatarColorIndex = avatarColorIndex,
+                    onRefresh = { viewModel.refreshSteps() },
+                    onProfile = onNavigateToProfile
+                )
+            }
+
+            Spacer(modifier = Modifier.height(Spacing.md))
+
+            // Health Connect Status banner (when not granted or not installed)
+            StaggeredEntrance(index = 1) {
+                HealthConnectBanner(
+                    state = healthState,
+                    onRequestPermission = {
+                        permissionLauncher.launch(healthConnectManager.permissions)
+                    },
+                    onInstallHealthConnect = {
+                        viewModel.installHealthConnect()
+                    }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(Spacing.md))
+
+            if (isLandscapeMode) {
+                // Rule 13: In landscape on phones, show StepRing on the left and stats + chart on the right
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(Spacing.md)
+                    ) {
+                        StepRingCard(
+                            stats = stats,
+                            dailyGoal = dailyGoal,
+                            onAddSteps = { viewModel.addSimulatedSteps(1000L) }
+                        )
+
+                        StreakCardSection(
+                            stats = stats,
+                            dailyGoal = dailyGoal
+                        )
+                    }
+
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(Spacing.md)
+                    ) {
+                        StatCardsSection(
+                            stats = stats,
+                            isNarrow = isNarrow
+                        )
+
+                        WeeklyChartSection(
+                            stats = stats
+                        )
+
+                        CrewsPlaceholderSection(
+                            onNavigateToCrews = onNavigateToCrews
+                        )
+                    }
+                }
+            } else {
+                // Portrait / Standard vertical stack
+                StaggeredEntrance(index = 2) {
+                    StepRingCard(
+                        stats = stats,
+                        dailyGoal = dailyGoal,
+                        onAddSteps = { viewModel.addSimulatedSteps(1000L) }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(Spacing.lg))
+
+                StaggeredEntrance(index = 3) {
+                    StreakCardSection(
+                        stats = stats,
+                        dailyGoal = dailyGoal
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(Spacing.lg))
+
+                StaggeredEntrance(index = 4) {
+                    StatCardsSection(
+                        stats = stats,
+                        isNarrow = isNarrow
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(Spacing.lg))
+
+                StaggeredEntrance(index = 5) {
+                    WeeklyChartSection(
+                        stats = stats
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(Spacing.lg))
+
+                StaggeredEntrance(index = 6) {
+                    CrewsPlaceholderSection(
+                        onNavigateToCrews = onNavigateToCrews
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GreetingRow(
+    greeting: String,
+    userName: String,
+    avatarColorIndex: Int,
+    onRefresh: () -> Unit,
+    onProfile: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f, fill = false)) {
+            Text(
+                text = "$greeting, $userName",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = WalkCrewTheme.extendedColors.textPrimary,
+                maxLines = 1
+            )
+            Text(
+                text = "Step forward today",
+                style = MaterialTheme.typography.bodySmall,
+                color = WalkCrewTheme.extendedColors.textSecondary
+            )
+        }
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(
+                onClick = onRefresh,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                    .size(48.dp)
+                    .testTag("refresh_steps_button")
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Refresh,
+                    contentDescription = "Refresh steps",
+                    tint = WalkCrewTheme.extendedColors.textSecondary
+                )
+            }
+
+            Spacer(modifier = Modifier.width(4.dp))
+
+            Avatar(
+                initials = userName.take(2),
+                colorIndex = avatarColorIndex,
+                size = 48.dp,
+                onClick = onProfile,
+                testTag = "home_user_avatar"
+            )
+        }
+    }
+}
+
+@Composable
+private fun StepRingCard(
+    stats: UserStats,
+    dailyGoal: Long,
+    onAddSteps: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, WalkCrewTheme.extendedColors.divider, CardShape)
+            .testTag("step_ring_card"),
+        shape = CardShape,
+        color = MaterialTheme.colorScheme.surface,
+        shadowElevation = 0.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            StepRing(
+                currentSteps = stats.steps,
+                goalSteps = dailyGoal,
+                modifier = Modifier.testTag("home_step_ring")
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
-                    Text(
-                        text = "$greeting, $userName",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = WalkCrewTheme.extendedColors.textPrimary
-                    )
-                    Text(
-                        text = "Step forward today",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = WalkCrewTheme.extendedColors.textSecondary
-                    )
-                }
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(
-                        onClick = { viewModel.refreshSteps() },
-                        modifier = Modifier.testTag("refresh_steps_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Refresh,
-                            contentDescription = "Refresh steps",
-                            tint = WalkCrewTheme.extendedColors.textSecondary
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(4.dp))
-
-                    Avatar(
-                        initials = userName.take(2),
-                        colorIndex = avatarColorIndex,
-                        size = 48.dp,
-                        onClick = onNavigateToProfile,
-                        testTag = "home_user_avatar"
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(Spacing.lg)) // 24dp spacing
-
-        // Health Connect Status banner (when not granted or not installed)
-        StaggeredEntrance(index = 1) {
-            HealthConnectBanner(
-                state = healthState,
-                onRequestPermission = {
-                    permissionLauncher.launch(healthConnectManager.permissions)
-                },
-                onInstallHealthConnect = {
-                    viewModel.installHealthConnect()
-                }
-            )
-        }
-
-        Spacer(modifier = Modifier.height(Spacing.lg)) // 24dp spacing
-
-        // Section 2: Big StepRing Card (surface, 28dp radius, 24dp padding)
-        StaggeredEntrance(index = 2) {
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, WalkCrewTheme.extendedColors.divider, CardShape)
-                    .testTag("step_ring_card"),
-                shape = CardShape,
-                color = MaterialTheme.colorScheme.surface,
-                shadowElevation = 0.dp
-            ) {
-                Column(
+                SecondaryButton(
+                    text = "+1,000 steps",
+                    onClick = onAddSteps,
+                    leadingIcon = Icons.Rounded.Add,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    val dailyGoal = userProfile?.dailyStepGoal ?: stats.goal
-                    StepRing(
-                        currentSteps = stats.steps,
-                        goalSteps = dailyGoal,
-                        modifier = Modifier.testTag("home_step_ring")
-                    )
-
-                    // Quick Step Simulator actions (so users can test ring & counter live)
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        SecondaryButton(
-                            text = "+1,000 steps",
-                            onClick = { viewModel.addSimulatedSteps(1000L) },
-                            leadingIcon = Icons.Rounded.Add,
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(44.dp),
-                            testTag = "simulate_steps_btn"
-                        )
-                    }
-                }
+                        .height(48.dp),
+                    testTag = "simulate_steps_btn"
+                )
             }
         }
+    }
+}
 
-        Spacer(modifier = Modifier.height(Spacing.lg)) // 24dp spacing
-
-        // Section 2.5: Streaks Card under the StepRing
-        // Flame icon in coral (#FF6B4A), streak number in headlineMedium,
-        // row of last 7 days as small circles (filled lime if goal reached, empty outline if not, today pulsing)
-        StaggeredEntrance(index = 3) {
-            val dailyGoal = userProfile?.dailyStepGoal ?: stats.goal
-            // Calculate consecutive streak days reaching daily goal
-            val history = stats.weeklyHistory
-            val streakCount = remember(history, dailyGoal, stats.steps) {
-                var count = 0
-                val reversed = history.reversed()
-                for (day in reversed) {
-                    val steps = if (day.isToday) stats.steps else day.steps
-                    if (steps >= dailyGoal) {
-                        count++
-                    } else if (!day.isToday) {
-                        break
-                    }
-                }
-                count
+@Composable
+private fun StreakCardSection(
+    stats: UserStats,
+    dailyGoal: Long
+) {
+    val history = stats.weeklyHistory
+    val streakCount = remember(history, dailyGoal, stats.steps) {
+        var count = 0
+        val reversed = history.reversed()
+        for (day in reversed) {
+            val steps = if (day.isToday) stats.steps else day.steps
+            if (steps >= dailyGoal) {
+                count++
+            } else if (!day.isToday) {
+                break
             }
-
-            StreakCard(
-                weeklyHistory = history,
-                dailyGoal = dailyGoal,
-                currentStreakDays = streakCount
-            )
         }
+        count
+    }
 
-        Spacer(modifier = Modifier.height(Spacing.lg)) // 24dp spacing
+    StreakCard(
+        weeklyHistory = history,
+        dailyGoal = dailyGoal,
+        currentStreakDays = streakCount
+    )
+}
 
-        // Section 3: Row of 3 StatCards (equal width)
-        StaggeredEntrance(index = 4) {
+@Composable
+private fun StatCardsSection(
+    stats: UserStats,
+    isNarrow: Boolean
+) {
+    if (isNarrow) {
+        // Narrow screens (< 340dp): 2+1 grid so text never truncates
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(Spacing.sm)
+        ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
@@ -271,107 +408,135 @@ fun HomeScreen(
                     modifier = Modifier.weight(1f),
                     testTag = "stat_calories"
                 )
-                StatCard(
-                    title = "Active time",
-                    value = "${stats.activeMinutes}",
-                    unit = "mins",
-                    modifier = Modifier.weight(1f),
-                    testTag = "stat_active_time"
+            }
+            StatCard(
+                title = "Active time",
+                value = "${stats.activeMinutes}",
+                unit = "mins",
+                modifier = Modifier.fillMaxWidth(),
+                testTag = "stat_active_time"
+            )
+        }
+    } else {
+        // Normal screens: 3 equal cards
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
+        ) {
+            StatCard(
+                title = "Distance",
+                value = String.format(Locale.getDefault(), "%.1f", stats.distanceKm),
+                unit = "km",
+                modifier = Modifier.weight(1f),
+                testTag = "stat_distance"
+            )
+            StatCard(
+                title = "Calories",
+                value = NumberFormat.getNumberInstance(Locale.getDefault()).format(stats.caloriesKcal),
+                unit = "kcal",
+                modifier = Modifier.weight(1f),
+                testTag = "stat_calories"
+            )
+            StatCard(
+                title = "Active time",
+                value = "${stats.activeMinutes}",
+                unit = "mins",
+                modifier = Modifier.weight(1f),
+                testTag = "stat_active_time"
+            )
+        }
+    }
+}
+
+@Composable
+private fun WeeklyChartSection(
+    stats: UserStats
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        SectionHeader(
+            title = "This week",
+            trailingContent = {
+                Text(
+                    text = "Past 7 days",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = WalkCrewTheme.extendedColors.textSecondary
                 )
             }
-        }
+        )
 
-        Spacer(modifier = Modifier.height(Spacing.lg)) // 24dp spacing
+        Spacer(modifier = Modifier.height(Spacing.sm))
 
-        // Section 4: "This week" section with custom-drawn Canvas Bar Chart
-        StaggeredEntrance(index = 5) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                SectionHeader(
-                    title = "This week",
-                    trailingContent = {
-                        Text(
-                            text = "Past 7 days",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = WalkCrewTheme.extendedColors.textSecondary
-                        )
-                    }
-                )
+        WeeklyBarChart(
+            weeklyData = stats.weeklyHistory,
+            goalSteps = stats.goal
+        )
+    }
+}
 
-                Spacer(modifier = Modifier.height(Spacing.sm))
+@Composable
+private fun CrewsPlaceholderSection(
+    onNavigateToCrews: () -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        SectionHeader(title = "Your crews")
 
-                WeeklyBarChart(
-                    weeklyData = stats.weeklyHistory,
-                    goalSteps = stats.goal
-                )
-            }
-        }
+        Spacer(modifier = Modifier.height(Spacing.sm))
 
-        Spacer(modifier = Modifier.height(Spacing.lg)) // 24dp spacing
-
-        // Section 5: Placeholder "Your crews" card
-        StaggeredEntrance(index = 6) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                SectionHeader(title = "Your crews")
-
-                Spacer(modifier = Modifier.height(Spacing.sm))
-
-                Surface(
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(1.dp, WalkCrewTheme.extendedColors.divider, CardShape)
+                .testTag("your_crews_placeholder_card"),
+            shape = CardShape,
+            color = MaterialTheme.colorScheme.surface,
+            shadowElevation = 0.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .border(1.dp, WalkCrewTheme.extendedColors.divider, CardShape)
-                        .testTag("your_crews_placeholder_card"),
-                    shape = CardShape,
-                    color = MaterialTheme.colorScheme.surface,
-                    shadowElevation = 0.dp
+                        .size(56.dp)
+                        .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(56.dp)
-                                .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Groups,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(28.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        Text(
-                            text = "No crew yet",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = WalkCrewTheme.extendedColors.textPrimary
-                        )
-
-                        Spacer(modifier = Modifier.height(6.dp))
-
-                        Text(
-                            text = "Create or join a crew to start competing",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = WalkCrewTheme.extendedColors.textSecondary,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
-
-                        Spacer(modifier = Modifier.height(20.dp))
-
-                        PrimaryButton(
-                            text = "Explore Crews",
-                            onClick = onNavigateToCrews,
-                            modifier = Modifier.fillMaxWidth(),
-                            testTag = "join_crew_button"
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Rounded.Groups,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(28.dp)
+                    )
                 }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = "No crew yet",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = WalkCrewTheme.extendedColors.textPrimary
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Text(
+                    text = "Create or join a crew to start competing",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = WalkCrewTheme.extendedColors.textSecondary,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                PrimaryButton(
+                    text = "Explore Crews",
+                    onClick = onNavigateToCrews,
+                    modifier = Modifier.fillMaxWidth(),
+                    testTag = "join_crew_button"
+                )
             }
         }
     }
@@ -403,5 +568,17 @@ private fun StaggeredEntrance(
         )
     ) {
         content()
+    }
+}
+
+@DevicePreviews
+@FontScalePreviews
+@ThemePreviews
+@Composable
+private fun HomeScreenPreview() {
+    WalkCrewTheme {
+        Surface(color = MaterialTheme.colorScheme.background) {
+            HomeScreen()
+        }
     }
 }

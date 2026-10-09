@@ -15,6 +15,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.statusBarsPadding
+import com.example.ui.util.DevicePreviews
+import com.example.ui.util.FontScalePreviews
+import com.example.ui.util.ThemePreviews
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -71,25 +76,37 @@ import com.example.ui.theme.WalkCrewTheme
 fun ProfileScreen(
     viewModel: HomeViewModel,
     modifier: Modifier = Modifier,
-    onSignOut: () -> Unit = {}
+    onSignOut: () -> Unit = {},
+    onDeleteAccount: () -> Unit = {},
+    onNavigateToPaywall: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val userProfile by viewModel.userProfile.collectAsState()
     val userName = userProfile?.displayName ?: "Alex"
     val avatarColorIndex = userProfile?.avatarColorIndex ?: 2
     val healthState by viewModel.healthConnectState.collectAsState()
+    val revenueCatManager = remember { com.example.billing.RevenueCatManager.getInstance(context) }
+    val isPremium by revenueCatManager.isPremium.collectAsState()
 
     var showEditNameDialog by remember { mutableStateOf(false) }
+    var showDeleteAccountDialog by remember { mutableStateOf(false) }
     var tempName by remember { mutableStateOf(userName) }
 
-    Column(
+    Box(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = Spacing.screenHorizontal)
-            .padding(top = 16.dp, bottom = 100.dp),
-        verticalArrangement = Arrangement.spacedBy(Spacing.lg)
+            .statusBarsPadding(),
+        contentAlignment = Alignment.TopCenter
     ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .widthIn(max = 640.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = Spacing.screenHorizontal)
+                .padding(top = 16.dp, bottom = 100.dp),
+            verticalArrangement = Arrangement.spacedBy(Spacing.lg)
+        ) {
         Text(
             text = "Profile & Settings",
             style = MaterialTheme.typography.headlineMedium,
@@ -438,6 +455,107 @@ fun ProfileScreen(
             }
         }
 
+        // Plan & Entitlement Section
+        SectionHeader(title = "Plan & Membership")
+
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(
+                    width = 1.dp,
+                    color = if (isPremium) com.example.ui.theme.LimeAccent.copy(alpha = 0.5f) else WalkCrewTheme.extendedColors.divider,
+                    shape = CardShape
+                )
+                .testTag("membership_status_card"),
+            shape = CardShape,
+            color = MaterialTheme.colorScheme.surface,
+            shadowElevation = 0.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (isPremium) "WalkCrew Premium" else "Free Plan",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = WalkCrewTheme.extendedColors.textPrimary
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = if (isPremium) "Entitlement: active ('premium')" else "Entitlement: none ('free')",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (isPremium) MaterialTheme.colorScheme.primary else WalkCrewTheme.extendedColors.textSecondary
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .background(
+                                color = if (isPremium) com.example.ui.theme.LimeAccent else MaterialTheme.colorScheme.surfaceVariant,
+                                shape = com.example.ui.theme.ButtonShape
+                            )
+                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                    ) {
+                        Text(
+                            text = if (isPremium) "PRO ACTIVE" else "FREE TIER",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (isPremium) com.example.ui.theme.DeepForest else WalkCrewTheme.extendedColors.textSecondary
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Text(
+                    text = if (isPremium) {
+                        "You have full access to unlimited crews, custom themes, detailed step history, and ad-free experience."
+                    } else {
+                        "Free tier allows joining up to 2 crews. Upgrade to Premium for unlimited crews and custom styling."
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = WalkCrewTheme.extendedColors.textSecondary
+                )
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                if (isPremium) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        SecondaryButton(
+                            text = "View Benefits",
+                            onClick = onNavigateToPaywall,
+                            modifier = Modifier.weight(1f),
+                            testTag = "view_premium_benefits_btn"
+                        )
+                        SecondaryButton(
+                            text = "Restore",
+                            onClick = { revenueCatManager.restorePurchases() },
+                            modifier = Modifier.weight(1f),
+                            testTag = "restore_in_profile_btn"
+                        )
+                    }
+                } else {
+                    PrimaryButton(
+                        text = "Upgrade to Premium ($3.99/mo)",
+                        onClick = onNavigateToPaywall,
+                        modifier = Modifier.fillMaxWidth(),
+                        testTag = "upgrade_to_pro_button"
+                    )
+                }
+            }
+        }
+
         // Demo and Testing Tools Card
         SectionHeader(title = "Testing Tools")
 
@@ -462,7 +580,7 @@ fun ProfileScreen(
                     color = WalkCrewTheme.extendedColors.textPrimary
                 )
                 Text(
-                    text = "Add steps or reset demo state to test the spring progress ring and stat counters.",
+                    text = "Add steps or test RevenueCat entitlement state to test the spring progress ring and crew limits.",
                     style = MaterialTheme.typography.bodySmall,
                     color = WalkCrewTheme.extendedColors.textSecondary
                 )
@@ -471,7 +589,7 @@ fun ProfileScreen(
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     PrimaryButton(
                         text = "+2,500 Steps",
@@ -481,10 +599,10 @@ fun ProfileScreen(
                     )
 
                     SecondaryButton(
-                        text = "Reset Demo",
-                        onClick = { viewModel.resetDemoSteps() },
+                        text = if (isPremium) "Simulate Free" else "Simulate Pro",
+                        onClick = { revenueCatManager.toggleSimulatedPremium(!isPremium) },
                         modifier = Modifier.weight(1f),
-                        testTag = "reset_demo_btn"
+                        testTag = "toggle_simulated_premium_btn"
                     )
                 }
             }
@@ -498,7 +616,24 @@ fun ProfileScreen(
             modifier = Modifier.fillMaxWidth(),
             testTag = "sign_out_button"
         )
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // Account Deletion Section (Required for Google Play Store Policy)
+        TextButton(
+            onClick = { showDeleteAccountDialog = true },
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("delete_account_button")
+        ) {
+            Text(
+                text = "Delete Account & Data",
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
     }
+}
 
     if (showEditNameDialog) {
         AlertDialog(
@@ -537,5 +672,64 @@ fun ProfileScreen(
             shape = CardShape,
             containerColor = MaterialTheme.colorScheme.surface
         )
+    }
+
+    if (showDeleteAccountDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteAccountDialog = false },
+            title = {
+                Text(
+                    text = "Delete Account?",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.error
+                )
+            },
+            text = {
+                Text(
+                    text = "Are you sure you want to permanently delete your WalkCrew account? All your step history, crew memberships, and profile data will be permanently removed. This action cannot be undone.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = WalkCrewTheme.extendedColors.textPrimary
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteAccountDialog = false
+                    onDeleteAccount()
+                }) {
+                    Text("Delete Permanently", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteAccountDialog = false }) {
+                    Text("Cancel", color = WalkCrewTheme.extendedColors.textSecondary)
+                }
+            },
+            shape = CardShape,
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    }
+}
+
+@DevicePreviews
+@FontScalePreviews
+@ThemePreviews
+@Composable
+private fun ProfileScreenPreview() {
+    WalkCrewTheme {
+        Surface(color = MaterialTheme.colorScheme.background) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Profile & Settings",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
     }
 }

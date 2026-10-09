@@ -49,6 +49,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun loadUserProfile(user: FirebaseUser) {
         viewModelScope.launch {
+            com.example.billing.RevenueCatManager.getInstance(getApplication()).setAppUserId(user.uid)
             val profile = userRepository.getUserProfile(user.uid)
             if (profile != null && profile.displayName.isNotBlank()) {
                 _uiState.value = AuthUiState.Authenticated(profile)
@@ -99,8 +100,24 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun signOut() {
+        com.example.billing.RevenueCatManager.getInstance(getApplication()).logOut()
         authRepository.signOut(viewModelScope) {
             _uiState.value = AuthUiState.Unauthenticated
+        }
+    }
+
+    fun deleteAccount(onSuccess: () -> Unit = {}) {
+        viewModelScope.launch {
+            _isSigningIn.value = true
+            com.example.billing.RevenueCatManager.getInstance(getApplication()).logOut()
+            val result = authRepository.deleteAccount()
+            _isSigningIn.value = false
+            result.onSuccess {
+                _uiState.value = AuthUiState.Unauthenticated
+                onSuccess()
+            }.onFailure { error ->
+                _errorMessage.value = error.localizedMessage ?: "Failed to delete account"
+            }
         }
     }
 

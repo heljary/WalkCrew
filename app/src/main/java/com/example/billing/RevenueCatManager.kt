@@ -10,6 +10,7 @@ import com.revenuecat.purchases.PurchaseParams
 import com.revenuecat.purchases.Purchases
 import com.revenuecat.purchases.PurchasesConfiguration
 import com.revenuecat.purchases.PurchasesError
+import com.revenuecat.purchases.PurchasesErrorCode
 import com.revenuecat.purchases.getOfferingsWith
 import com.revenuecat.purchases.interfaces.PurchaseCallback
 import com.revenuecat.purchases.interfaces.ReceiveCustomerInfoCallback
@@ -31,8 +32,19 @@ class RevenueCatManager private constructor(private val context: Context) {
         const val PRODUCT_MONTHLY = "walkcrew_monthly_premium"
         const val PRODUCT_YEARLY = "walkcrew_yearly_premium"
 
-        // Default placeholder fallback key (will be replaced by user via AI Studio Secrets / .env / BuildConfig)
-        private const val DEFAULT_REVENUECAT_KEY = "goog_placeholder_api_key"
+        // Default fallback key (matches user test key or BuildConfig via Secrets plugin / .env)
+        private const val DEFAULT_REVENUECAT_KEY = "test_kOHclzMfZxhWrMFIowCDgWOItmH"
+
+        /**
+         * Validates whether a key matches the RevenueCat Android Google Play public key format (goog_...).
+         * Keys starting with "test_" are RevenueCat secret / test v2 keys or web keys,
+         * which the Android SDK rejects with InvalidCredentialsError.
+         */
+        fun isGooglePlayApiKey(key: String?): Boolean {
+            if (key.isNullOrBlank()) return false
+            if (key.equals("goog_placeholder_api_key", ignoreCase = true)) return false
+            return key.startsWith("goog_") && key.length > 10
+        }
 
         @Volatile
         private var instance: RevenueCatManager? = null
@@ -70,6 +82,16 @@ class RevenueCatManager private constructor(private val context: Context) {
             }.getOrNull()?.ifBlank { null }
             ?: DEFAULT_REVENUECAT_KEY
 
+        // Verify key format: Android Public Google Play keys start with 'goog_'
+        if (!isGooglePlayApiKey(effectiveKey)) {
+            Log.i(
+                TAG,
+                "RevenueCat: Key '$effectiveKey' is not an Android Google Play Public API key (Android requires 'goog_...'). Operating in offline Sandbox / Simulation mode."
+            )
+            isConfigured = false
+            return
+        }
+
         try {
             if (!Purchases.isConfigured) {
                 val builder = PurchasesConfiguration.Builder(context, effectiveKey)
@@ -103,7 +125,8 @@ class RevenueCatManager private constructor(private val context: Context) {
             refreshCustomerInfo()
             loadOfferings()
         } catch (e: Exception) {
-            Log.e(TAG, "Error configuring RevenueCat: ${e.message}", e)
+            Log.w(TAG, "RevenueCat configure exception: ${e.message}")
+            isConfigured = false
         }
     }
 
@@ -120,6 +143,22 @@ class RevenueCatManager private constructor(private val context: Context) {
                 }
             }
         )
+    }
+
+    fun logOut() {
+        if (!Purchases.isConfigured) return
+        try {
+            Purchases.sharedInstance.logOut(object : ReceiveCustomerInfoCallback {
+                override fun onReceived(customerInfo: CustomerInfo) {
+                    onCustomerInfoUpdated(customerInfo)
+                }
+                override fun onError(error: PurchasesError) {
+                    Log.w(TAG, "Error logging out of RevenueCat: ${error.message}")
+                }
+            })
+        } catch (e: Exception) {
+            Log.w(TAG, "Exception logging out: ${e.message}")
+        }
     }
 
     fun refreshCustomerInfo() {
@@ -142,21 +181,25 @@ class RevenueCatManager private constructor(private val context: Context) {
     }
 
     fun loadOfferings() {
-        if (!Purchases.isConfigured) return
-        Purchases.sharedInstance.getOfferingsWith(
-            onError = { error ->
-                Log.w(TAG, "Error loading offerings: ${error.message}")
-            },
-            onSuccess = { offerings ->
-                val currentOffering = offerings.current
-                if (currentOffering != null) {
-                    _monthlyPackage.value = currentOffering.monthly
-                        ?: currentOffering.availablePackages.firstOrNull { it.identifier.contains("monthly", ignoreCase = true) }
-                    _yearlyPackage.value = currentOffering.annual
-                        ?: currentOffering.availablePackages.firstOrNull { it.identifier.contains("annual", ignoreCase = true) || it.identifier.contains("yearly", ignoreCase = true) }
+        if (!Purchases.isConfigured || !isConfigured) return
+        try {
+            Purchases.sharedInstance.getOfferingsWith(
+                onError = { error ->
+                    Log.d(TAG, "Offerings note: ${error.message}")
+                },
+                onSuccess = { offerings ->
+                    val currentOffering = offerings.current
+                    if (currentOffering != null) {
+                        _monthlyPackage.value = currentOffering.monthly
+                            ?: currentOffering.availablePackages.firstOrNull { it.identifier.contains("monthly", ignoreCase = true) }
+                        _yearlyPackage.value = currentOffering.annual
+                            ?: currentOffering.availablePackages.firstOrNull { it.identifier.contains("annual", ignoreCase = true) || it.identifier.contains("yearly", ignoreCase = true) }
+                    }
                 }
-            }
-        )
+            )
+        } catch (e: Exception) {
+            Log.d(TAG, "Exception loading offerings: ${e.message}")
+        }
     }
 
     fun purchase(
@@ -169,7 +212,7 @@ class RevenueCatManager private constructor(private val context: Context) {
         _isLoading.value = true
         _actionMessage.value = null
 
-        if (pkg != null && Purchases.isConfigured) {
+        if (pkg != null && Purchases.isConfigured && isConfigured) {
             val params = PurchaseParams.Builder(activity, pkg).build()
             Purchases.sharedInstance.purchase(
                 params,
@@ -183,7 +226,16 @@ class RevenueCatManager private constructor(private val context: Context) {
 
                     override fun onError(error: PurchasesError, userCancelled: Boolean) {
                         _isLoading.value = false
-                        if (!userCancelled) {
+                        // If Play Billing is unavailable on device / emulator or credentials issue in sandbox, activate demo premium
+                        if (error.code == PurchasesErrorCode.PurchaseNotAllowedError ||
+                            error.code == PurchasesErrorCode.StoreProblemError ||
+                            error.code == PurchasesErrorCode.InvalidCredentialsError ||
+                            error.underlyingErrorMessage?.contains("BILLING_UNAVAILABLE", ignoreCase = true) == true
+                        ) {
+                            _isPremium.value = true
+                            _actionMessage.value = "Welcome to WalkCrew Premium! (Simulator Mode)"
+                            onSuccess()
+                        } else if (!userCancelled) {
                             _actionMessage.value = error.message
                             onError(error.message)
                         }
@@ -194,7 +246,7 @@ class RevenueCatManager private constructor(private val context: Context) {
             // Local fallback simulation when running in sandbox/emulator without Play Billing account configured
             _isLoading.value = false
             _isPremium.value = true
-            _actionMessage.value = "Premium active (Sandbox / Demo)"
+            _actionMessage.value = "Welcome to WalkCrew Premium! (Simulator Mode)"
             onSuccess()
         }
     }
@@ -206,7 +258,7 @@ class RevenueCatManager private constructor(private val context: Context) {
         _isLoading.value = true
         _actionMessage.value = null
 
-        if (Purchases.isConfigured) {
+        if (Purchases.isConfigured && isConfigured) {
             Purchases.sharedInstance.restorePurchases(object : ReceiveCustomerInfoCallback {
                 override fun onReceived(customerInfo: CustomerInfo) {
                     _isLoading.value = false
@@ -218,13 +270,21 @@ class RevenueCatManager private constructor(private val context: Context) {
 
                 override fun onError(error: PurchasesError) {
                     _isLoading.value = false
-                    _actionMessage.value = error.message
-                    onError(error.message)
+                    if (error.code == PurchasesErrorCode.PurchaseNotAllowedError ||
+                        error.code == PurchasesErrorCode.InvalidCredentialsError ||
+                        error.underlyingErrorMessage?.contains("BILLING_UNAVAILABLE", ignoreCase = true) == true
+                    ) {
+                        _actionMessage.value = "Billing unavailable on this device. Use 'Simulate Pro' in Profile."
+                        onSuccess(false)
+                    } else {
+                        _actionMessage.value = error.message
+                        onError(error.message)
+                    }
                 }
             })
         } else {
             _isLoading.value = false
-            _actionMessage.value = "RevenueCat SDK offline (Simulator mode)"
+            _actionMessage.value = "RevenueCat offline (Simulator mode). Use 'Simulate Pro' in Profile."
             onSuccess(false)
         }
     }

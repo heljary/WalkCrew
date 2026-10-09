@@ -17,6 +17,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import com.example.ui.util.DevicePreviews
+import com.example.ui.util.FontScalePreviews
+import com.example.ui.util.ThemePreviews
+import com.example.ui.theme.WalkCrewTheme
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -113,107 +120,119 @@ fun WelcomeSignInScreen(
             )
         }
 
-        // Content
-        Column(
+        // Content - Centered, scrollable, max-width constrained (Rules 10 & 12)
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
-                .navigationBarsPadding()
-                .padding(horizontal = Spacing.screenHorizontal, vertical = 32.dp),
-            verticalArrangement = Arrangement.SpaceBetween,
-            horizontalAlignment = Alignment.CenterHorizontally
+                .navigationBarsPadding(),
+            contentAlignment = Alignment.Center
         ) {
-            Spacer(modifier = Modifier.height(40.dp))
-
-            // Center Branding & Wordmark
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            ) {
-                Text(
-                    text = "WalkCrew",
-                    fontFamily = PlusJakartaSansFamily,
-                    fontWeight = FontWeight.ExtraBold,
-                    fontSize = 40.sp,
-                    lineHeight = 46.sp,
-                    color = LimeAccent,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.testTag("walkcrew_wordmark")
-                )
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                Text(
-                    text = "Walk together. Win together.",
-                    fontFamily = PlusJakartaSansFamily,
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 18.sp,
-                    lineHeight = 24.sp,
-                    color = Color(0xFFBAC7BF), // textSecondary-light on dark forest
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.testTag("walkcrew_tagline")
-                )
-            }
-
-            // Bottom Action Section
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .widthIn(max = 640.dp)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = Spacing.screenHorizontal, vertical = 32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
-                // Big pill button "Continue with Google" (lime background)
-                Button(
-                    onClick = {
-                        if (context is Activity) {
-                            viewModel.signInWithGoogle(context)
-                        }
-                    },
-                    enabled = !isSigningIn,
-                    shape = ButtonShape, // Fully rounded pill
-                    elevation = null,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = LimeAccent,
-                        contentColor = DeepForest,
-                        disabledContainerColor = LimeAccent.copy(alpha = 0.6f),
-                        disabledContentColor = DeepForest.copy(alpha = 0.6f)
-                    ),
-                    contentPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp)
-                        .testTag("continue_with_google_button")
+                Spacer(modifier = Modifier.height(32.dp))
+
+                // Center Branding & Wordmark
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(horizontal = 16.dp)
                 ) {
-                    if (isSigningIn) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = DeepForest,
-                            strokeWidth = 2.5.dp
-                        )
-                    } else {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Text(
-                                text = "Continue with Google",
-                                fontFamily = PlusJakartaSansFamily,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp,
-                                color = DeepForest
-                            )
-                        }
-                    }
+                    Text(
+                        text = "WalkCrew",
+                        fontFamily = PlusJakartaSansFamily,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 40.sp,
+                        lineHeight = 46.sp,
+                        color = LimeAccent,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.testTag("walkcrew_wordmark")
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Text(
+                        text = "Walk together. Win together.",
+                        fontFamily = PlusJakartaSansFamily,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 18.sp,
+                        lineHeight = 24.sp,
+                        color = Color(0xFFBAC7BF), // textSecondary-light on dark forest
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.testTag("walkcrew_tagline")
+                    )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(48.dp))
 
-                Text(
-                    text = "Sign in to join group step challenges and sync with your crew.",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color(0xFF8A9C91),
-                    textAlign = TextAlign.Center
-                )
+                // Bottom Action Section
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // Big pill button "Continue with Google" (lime background)
+                    Button(
+                        onClick = {
+                            if (context is Activity) {
+                                viewModel.signInWithGoogle(context)
+                            }
+                        },
+                        enabled = !isSigningIn,
+                        shape = ButtonShape, // Fully rounded pill
+                        elevation = null,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = LimeAccent,
+                            contentColor = DeepForest,
+                            disabledContainerColor = LimeAccent.copy(alpha = 0.6f),
+                            disabledContentColor = DeepForest.copy(alpha = 0.6f)
+                        ),
+                        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .testTag("continue_with_google_button")
+                    ) {
+                        if (isSigningIn) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = DeepForest,
+                                strokeWidth = 2.5.dp
+                            )
+                        } else {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Text(
+                                    text = "Continue with Google",
+                                    fontFamily = PlusJakartaSansFamily,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp,
+                                    color = DeepForest
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        text = "Sign in to join group step challenges and sync with your crew.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFF8A9C91),
+                        textAlign = TextAlign.Center
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
             }
         }
 
@@ -221,5 +240,39 @@ fun WelcomeSignInScreen(
             hostState = snackbarHostState,
             modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding()
         )
+    }
+}
+
+@DevicePreviews
+@FontScalePreviews
+@ThemePreviews
+@Composable
+private fun WelcomeSignInScreenPreview() {
+    WalkCrewTheme {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(DeepForest)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "WalkCrew",
+                    fontFamily = PlusJakartaSansFamily,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 40.sp,
+                    color = LimeAccent
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Walk together. Win together.",
+                    color = Color(0xFFBAC7BF)
+                )
+            }
+        }
     }
 }

@@ -18,4 +18,10 @@ class ExampleRobolectricTest {
     val appName = context.getString(R.string.app_name)
     assertEquals("WalkCrew", appName)
   }
+
+  @Test
+  fun `create AuthViewModel`() {
+    val app = ApplicationProvider.getApplicationContext<android.app.Application>()
+    val vm = com.example.ui.auth.AuthViewModel(app)
+  }
 }

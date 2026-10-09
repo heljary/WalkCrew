@@ -23,6 +23,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import com.example.ui.util.DevicePreviews
+import com.example.ui.util.FontScalePreviews
+import com.example.ui.util.ThemePreviews
+import com.example.ui.theme.WalkCrewTheme
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -135,11 +140,13 @@ fun PaywallScreen(
             .background(DeepForest) // full-screen forest green background
             .statusBarsPadding()
             .navigationBarsPadding()
-            .testTag("paywall_screen")
+            .testTag("paywall_screen"),
+        contentAlignment = Alignment.TopCenter
     ) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
+                .widthIn(max = 640.dp)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp)
                 .padding(bottom = 32.dp),
@@ -173,7 +180,7 @@ fun PaywallScreen(
                 IconButton(
                     onClick = onDismiss,
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(48.dp)
                         .background(Color.White.copy(alpha = 0.10f), CircleShape)
                         .testTag("paywall_close_button")
                 ) {
@@ -376,9 +383,11 @@ fun PaywallScreen(
                     color = Color(0xFF869B8F),
                     modifier = Modifier
                         .clickable {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://walkcrew.app/terms"))
-                            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                            context.startActivity(intent)
+                            try {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://walkcrew.app/terms"))
+                                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                context.startActivity(intent)
+                            } catch (_: Exception) {}
                         }
                         .padding(4.dp)
                         .testTag("terms_link")
@@ -396,9 +405,11 @@ fun PaywallScreen(
                     color = Color(0xFF869B8F),
                     modifier = Modifier
                         .clickable {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://walkcrew.app/privacy"))
-                            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                            context.startActivity(intent)
+                            try {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://walkcrew.app/privacy"))
+                                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                context.startActivity(intent)
+                            } catch (_: Exception) {}
                         }
                         .padding(4.dp)
                         .testTag("privacy_link")
@@ -560,6 +571,43 @@ private fun PlanCard(
                     color = DeepForest,
                     letterSpacing = 0.5.sp
                 )
+            }
+        }
+    }
+}
+
+@DevicePreviews
+@FontScalePreviews
+@ThemePreviews
+@Composable
+private fun PaywallScreenPreview() {
+    WalkCrewTheme {
+        Surface(color = MaterialTheme.colorScheme.background) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(DeepForest)
+                    .padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.widthIn(max = 640.dp)
+                ) {
+                    Text(
+                        text = "WalkCrew Pro",
+                        fontFamily = PlusJakartaSansFamily,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 32.sp,
+                        color = LimeAccent
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Unlock unlimited crews, custom themes, and full stats",
+                        color = Color.White.copy(alpha = 0.8f),
+                        textAlign = TextAlign.Center
+                    )
+                }
             }
         }
     }

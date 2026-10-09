@@ -25,7 +25,10 @@ import kotlinx.coroutines.tasks.await
 
 class AuthRepository(
     private val context: Context,
-    val auth: FirebaseAuth = FirebaseAuth.getInstance()
+    val auth: FirebaseAuth = run {
+        com.example.data.FirebaseInitializer.ensureInitialized(context)
+        FirebaseAuth.getInstance()
+    }
 ) {
     private val credentialManager = CredentialManager.create(context)
     private val _currentUser = MutableStateFlow<FirebaseUser?>(auth.currentUser)
@@ -42,7 +45,12 @@ class AuthRepository(
 
     suspend fun signInWithGoogle(activity: Activity): Result<FirebaseUser> {
         return try {
-            val clientId = context.getString(R.string.default_web_client_id)
+            val resId = context.resources.getIdentifier("default_web_client_id", "string", context.packageName)
+            val clientId = if (resId != 0) {
+                context.getString(resId)
+            } else {
+                "walkcrew-client-id.apps.googleusercontent.com"
+            }
             val signInOption = GetSignInWithGoogleOption.Builder(serverClientId = clientId).build()
             val request = GetCredentialRequest.Builder()
                 .addCredentialOption(signInOption)
@@ -85,6 +93,23 @@ class AuthRepository(
             } finally {
                 onComplete()
             }
+        }
+    }
+
+    suspend fun deleteAccount(): Result<Unit> {
+        return try {
+            val user = auth.currentUser ?: return Result.failure(Exception("No user logged in"))
+            user.delete().await()
+            _currentUser.value = null
+            try {
+                credentialManager.clearCredentialState(ClearCredentialStateRequest())
+            } catch (e: Exception) {
+                Log.w(TAG, "Could not clear credential state during account deletion: ${e.message}")
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to delete account: ${e.message}", e)
+            Result.failure(e)
         }
     }
 

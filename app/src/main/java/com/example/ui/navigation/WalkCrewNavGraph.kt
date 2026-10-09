@@ -86,7 +86,8 @@ fun WalkCrewApp(
                 navController = navController,
                 homeViewModel = homeViewModel,
                 crewViewModel = crewViewModel,
-                onSignOut = { authViewModel.signOut() }
+                onSignOut = { authViewModel.signOut() },
+                onDeleteAccount = { authViewModel.deleteAccount() }
             )
         }
     }
@@ -97,7 +98,8 @@ private fun MainAppContent(
     navController: NavHostController,
     homeViewModel: HomeViewModel,
     crewViewModel: CrewViewModel,
-    onSignOut: () -> Unit
+    onSignOut: () -> Unit,
+    onDeleteAccount: () -> Unit
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: WalkCrewDestinations.HOME
@@ -172,6 +174,7 @@ private fun MainAppContent(
                 ProfileScreen(
                     viewModel = homeViewModel,
                     onSignOut = onSignOut,
+                    onDeleteAccount = onDeleteAccount,
                     onNavigateToPaywall = {
                         navController.navigate(WalkCrewDestinations.PAYWALL)
                     }

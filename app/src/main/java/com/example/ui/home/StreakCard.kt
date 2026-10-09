@@ -22,6 +22,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.LocalFireDepartment
@@ -277,13 +280,20 @@ fun StreakCard(
             containerColor = MaterialTheme.colorScheme.surface,
             dragHandle = null
         ) {
-            MilestoneCelebrationSheet(
-                streakDays = milestoneDays,
-                onDismiss = {
-                    showMilestoneSheet = null
-                    onMilestoneShown(milestoneDays)
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(modifier = Modifier.widthIn(max = 600.dp)) {
+                    MilestoneCelebrationSheet(
+                        streakDays = milestoneDays,
+                        onDismiss = {
+                            showMilestoneSheet = null
+                            onMilestoneShown(milestoneDays)
+                        }
+                    )
                 }
-            )
+            }
         }
     }
 }
@@ -342,13 +352,19 @@ fun MilestoneCelebrationSheet(
             }
         }
 
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(28.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center
         ) {
-            Spacer(modifier = Modifier.height(16.dp))
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 600.dp)
+                    .verticalScroll(rememberScrollState())
+                    .padding(28.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Spacer(modifier = Modifier.height(16.dp))
 
             Box(
                 modifier = Modifier
@@ -403,4 +419,5 @@ fun MilestoneCelebrationSheet(
             Spacer(modifier = Modifier.height(16.dp))
         }
     }
+}
 }

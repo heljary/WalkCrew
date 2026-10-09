@@ -134,11 +134,12 @@ fun WeeklyBarChart(
                     val canvasWidth = size.width
                     val canvasHeight = size.height
 
-                    // Reserve bottom 24dp for x-axis labels
                     val chartHeight = canvasHeight - 28.dp.toPx()
                     val barCount = if (weeklyData.isEmpty()) 7 else weeklyData.size
+                    val totalSpacing = 10.dp.toPx() * (barCount - 1)
+                    val calculatedBarWidth = ((canvasWidth - totalSpacing) / barCount).coerceAtLeast(6.dp.toPx())
+                    val barWidth = calculatedBarWidth.coerceAtMost(32.dp.toPx())
                     val slotWidth = canvasWidth / barCount
-                    val barWidth = (slotWidth * 0.45f).coerceAtMost(28.dp.toPx())
 
                     // Draw dashed goal line
                     val goalY = chartHeight - (goalSteps.toFloat() / maxSteps * chartHeight)

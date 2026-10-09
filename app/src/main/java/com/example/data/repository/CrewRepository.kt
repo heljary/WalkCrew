@@ -41,6 +41,7 @@ data class CrewDetailData(
 class CrewRepository(private val context: Context) {
 
     val db: FirebaseFirestore by lazy {
+        com.example.data.FirebaseInitializer.ensureInitialized(context)
         val dbId = context.getString(R.string.firestore_database_id)
         FirebaseFirestore.getInstance(dbId)
     }

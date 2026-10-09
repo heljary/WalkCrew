@@ -15,9 +15,14 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import com.example.ui.util.DevicePreviews
+import com.example.ui.util.FontScalePreviews
+import com.example.ui.util.ThemePreviews
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.Icon
@@ -64,17 +69,24 @@ fun ProfileSetupScreen(
         containerColor = MaterialTheme.colorScheme.background,
         modifier = modifier.fillMaxSize()
     ) { innerPadding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .statusBarsPadding()
-                .navigationBarsPadding()
-                .padding(horizontal = Spacing.screenHorizontal, vertical = 24.dp)
-                .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
+                .padding(innerPadding),
+            contentAlignment = Alignment.TopCenter
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .widthIn(max = 640.dp)
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+                    .imePadding()
+                    .padding(horizontal = Spacing.screenHorizontal, vertical = 24.dp)
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.fillMaxWidth()
@@ -182,27 +194,34 @@ fun ProfileSetupScreen(
                         ) {
                             AvatarColors.forEachIndexed { index, color ->
                                 val isSelected = index == selectedColorIndex
+                                // Outer touch target of 48.dp (Rule 14)
                                 Box(
                                     modifier = Modifier
-                                        .size(36.dp)
-                                        .clip(CircleShape)
-                                        .background(color)
-                                        .border(
-                                            width = if (isSelected) 3.dp else 0.dp,
-                                            color = if (isSelected) WalkCrewTheme.extendedColors.textPrimary else Color.Transparent,
-                                            shape = CircleShape
-                                        )
+                                        .size(48.dp)
                                         .clickable { selectedColorIndex = index }
                                         .testTag("swatch_$index"),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    if (isSelected) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.Check,
-                                            contentDescription = "Selected color",
-                                            tint = if (color == LimeAccent) DeepForest else Color.White,
-                                            modifier = Modifier.size(18.dp)
-                                        )
+                                    Box(
+                                        modifier = Modifier
+                                            .size(36.dp)
+                                            .clip(CircleShape)
+                                            .background(color)
+                                            .border(
+                                                width = if (isSelected) 3.dp else 0.dp,
+                                                color = if (isSelected) WalkCrewTheme.extendedColors.textPrimary else Color.Transparent,
+                                                shape = CircleShape
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        if (isSelected) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.Check,
+                                                contentDescription = "Selected color",
+                                                tint = if (color == LimeAccent) DeepForest else Color.White,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -224,6 +243,41 @@ fun ProfileSetupScreen(
                 modifier = Modifier.fillMaxWidth(),
                 testTag = "save_profile_button"
             )
+        }
+    }
+}
+}
+
+@DevicePreviews
+@FontScalePreviews
+@ThemePreviews
+@Composable
+private fun ProfileSetupScreenPreview() {
+    WalkCrewTheme {
+        Surface(color = MaterialTheme.colorScheme.background) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.widthIn(max = 640.dp)
+                ) {
+                    Avatar(
+                        initials = "WC",
+                        colorIndex = 2,
+                        size = 96.dp
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Welcome to WalkCrew",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
         }
     }
 }

@@ -11,12 +11,20 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import com.example.ui.util.DevicePreviews
+import com.example.ui.util.FontScalePreviews
+import com.example.ui.util.ThemePreviews
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -82,10 +90,16 @@ fun CrewsScreen(
     val showPaywall by viewModel.showPaywall.collectAsState()
     val paywallReason by viewModel.paywallReason.collectAsState()
 
-    Box(modifier = modifier.fillMaxSize()) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .statusBarsPadding(),
+        contentAlignment = Alignment.TopCenter
+    ) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
+                .widthIn(max = 640.dp)
                 .padding(horizontal = Spacing.screenHorizontal)
                 .padding(top = 16.dp, bottom = 100.dp),
             verticalArrangement = Arrangement.spacedBy(Spacing.lg)
@@ -418,7 +432,7 @@ fun CrewCard(
                     text = "Share Code",
                     onClick = { onShareInvite(crew.inviteCode) },
                     leadingIcon = Icons.Rounded.Share,
-                    modifier = Modifier.height(44.dp),
+                    modifier = Modifier.height(48.dp),
                     testTag = "share_invite_btn_${crew.crewId}"
                 )
             }
@@ -459,12 +473,19 @@ fun CreateCrewBottomSheet(
             )
         }
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = Spacing.screenHorizontal)
-                .padding(bottom = 36.dp)
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 600.dp)
+                    .verticalScroll(rememberScrollState())
+                    .imePadding()
+                    .padding(horizontal = Spacing.screenHorizontal)
+                    .padding(bottom = 36.dp)
+            ) {
             Text(
                 text = "Create a Crew",
                 style = MaterialTheme.typography.titleLarge,
@@ -570,6 +591,7 @@ fun CreateCrewBottomSheet(
         }
     }
 }
+}
 
 /**
  * Bottom Sheet: Join with code
@@ -602,65 +624,96 @@ fun JoinCrewBottomSheet(
             )
         }
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = Spacing.screenHorizontal)
-                .padding(bottom = 36.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = "Join with Code",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = WalkCrewTheme.extendedColors.textPrimary,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = "Enter the 6-character code shared by your crew leader",
-                style = MaterialTheme.typography.bodyMedium,
-                color = WalkCrewTheme.extendedColors.textSecondary,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(28.dp))
-
-            // 6-box code input (each box 48dp, rounded 14dp, auto-advance focus)
-            SixBoxCodeInput(
-                code = codeInput,
-                onCodeChange = { codeInput = it },
-                onComplete = { completedCode ->
-                    onJoin(completedCode)
-                },
-                modifier = Modifier.padding(horizontal = 4.dp)
-            )
-
-            if (errorMessage != null) {
-                Spacer(modifier = Modifier.height(14.dp))
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 600.dp)
+                    .verticalScroll(rememberScrollState())
+                    .imePadding()
+                    .padding(horizontal = Spacing.screenHorizontal)
+                    .padding(bottom = 36.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
                 Text(
-                    text = errorMessage,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = WalkCrewTheme.extendedColors.highlight,
+                    text = "Join with Code",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = WalkCrewTheme.extendedColors.textPrimary,
                     textAlign = TextAlign.Center
                 )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = "Enter the 6-character code shared by your crew leader",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = WalkCrewTheme.extendedColors.textSecondary,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(28.dp))
+
+                // 6-box code input (each box 48dp, rounded 14dp, auto-advance focus)
+                SixBoxCodeInput(
+                    code = codeInput,
+                    onCodeChange = { codeInput = it },
+                    onComplete = { completedCode ->
+                        onJoin(completedCode)
+                    },
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
+
+                if (errorMessage != null) {
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Text(
+                        text = errorMessage,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = WalkCrewTheme.extendedColors.highlight,
+                        textAlign = TextAlign.Center
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(28.dp))
+
+                PrimaryButton(
+                    text = if (isLoading) "Joining crew..." else "Join Crew",
+                    onClick = {
+                        if (codeInput.length == 6) {
+                            onJoin(codeInput)
+                        }
+                    },
+                    enabled = codeInput.length == 6 && !isLoading,
+                    modifier = Modifier.fillMaxWidth(),
+                    testTag = "submit_join_crew_btn"
+                )
             }
+        }
+    }
+}
 
-            Spacer(modifier = Modifier.height(28.dp))
-
-            PrimaryButton(
-                text = if (isLoading) "Joining crew..." else "Join Crew",
-                onClick = {
-                    if (codeInput.length == 6) {
-                        onJoin(codeInput)
-                    }
-                },
-                enabled = codeInput.length == 6 && !isLoading,
-                modifier = Modifier.fillMaxWidth(),
-                testTag = "submit_join_crew_btn"
-            )
+@DevicePreviews
+@FontScalePreviews
+@ThemePreviews
+@Composable
+private fun CrewsScreenPreview() {
+    WalkCrewTheme {
+        Surface(color = MaterialTheme.colorScheme.background) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Walk Crews",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
     }
 }

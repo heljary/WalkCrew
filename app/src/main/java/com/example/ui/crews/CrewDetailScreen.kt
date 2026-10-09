@@ -29,10 +29,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import com.example.ui.util.rememberResponsiveLayoutInfo
+import com.example.ui.util.DevicePreviews
+import com.example.ui.util.FontScalePreviews
+import com.example.ui.util.ThemePreviews
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.EmojiEvents
@@ -104,6 +113,7 @@ fun CrewDetailScreen(
     val nudgedUsersToday by viewModel.nudgedUsersToday.collectAsState()
     val snackbarMessage by viewModel.snackbarMessage.collectAsState()
     val darkTheme = isSystemInDarkTheme()
+    val layoutInfo = rememberResponsiveLayoutInfo()
 
     val snackbarHostState = remember { SnackbarHostState() }
     var pendingNudgeMember by remember { mutableStateOf<LeaderboardMember?>(null) }
@@ -213,19 +223,110 @@ fun CrewDetailScreen(
         },
         modifier = modifier.fillMaxSize()
     ) { innerPadding ->
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.TopCenter
+        ) {
             if (detailState.isLoading && detailState.crew.crewId.isEmpty()) {
                 // Shimmer Loading Skeleton
                 ShimmerLeaderboardSkeleton(
                     modifier = Modifier
                         .fillMaxSize()
+                        .widthIn(max = 640.dp)
                         .padding(innerPadding)
                         .padding(horizontal = Spacing.screenHorizontal)
                 )
+            } else if (layoutInfo.isExpandedWidth) {
+                // Rule 12: On Expanded width, show leaderboard and challenge header side by side in two columns
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .widthIn(max = 1100.dp)
+                        .padding(innerPadding)
+                        .padding(horizontal = Spacing.screenHorizontal)
+                        .navigationBarsPadding(),
+                    horizontalArrangement = Arrangement.spacedBy(24.dp)
+                ) {
+                    // Left Column: Challenge Header Card & Controls
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(20.dp)
+                    ) {
+                        ChallengeHeaderCard(
+                            currentWeekNumber = detailState.currentWeekNumber,
+                            timeLeftFormatted = detailState.timeLeftFormatted,
+                            userDisplaySteps = userDisplaySteps,
+                            selectedTab = selectedTab,
+                            darkTheme = darkTheme
+                        )
+
+                        PillSegmentedControl(
+                            selectedTab = selectedTab,
+                            onTabSelected = { viewModel.selectTab(it) },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        if (detailState.crew.members.size <= 1) {
+                            SingleMemberInviteCard(
+                                crewName = detailState.crew.name,
+                                inviteCode = detailState.crew.inviteCode,
+                                onInviteClick = { viewModel.shareInviteCode(context) }
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(24.dp))
+                    }
+
+                    // Right Column: Podium & Leaderboard Rows
+                    LazyColumn(
+                        modifier = Modifier
+                            .weight(1.2f)
+                            .fillMaxHeight(),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        if (activeLeaderboard.isNotEmpty()) {
+                            item {
+                                PodiumSection(
+                                    members = activeLeaderboard.take(3),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 8.dp)
+                                )
+                            }
+                        }
+
+                        val runnersUp = activeLeaderboard.drop(3)
+                        if (runnersUp.isNotEmpty()) {
+                            items(runnersUp, key = { it.userId }) { member ->
+                                val leaderSteps = activeLeaderboard.firstOrNull()?.steps ?: 1L
+                                val userReactions = reactionsMap[member.userId] ?: emptyMap()
+                                val isNudgedToday = nudgedUsersToday.contains(member.userId)
+
+                                LeaderboardRow(
+                                    member = member,
+                                    maxSteps = leaderSteps.coerceAtLeast(1L),
+                                    reactions = userReactions,
+                                    isNudgedToday = isNudgedToday,
+                                    onNudgeClick = { handleNudgeClick(member) },
+                                    onLongPress = { activeReactionTarget = member },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
+
+                        item {
+                            Spacer(modifier = Modifier.height(32.dp))
+                        }
+                    }
+                }
             } else {
+                // Compact / Medium width: Centered single-column layout (max width 640dp)
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
+                        .widthIn(max = 640.dp)
                         .padding(innerPadding)
                         .padding(horizontal = Spacing.screenHorizontal)
                         .navigationBarsPadding(),
@@ -233,73 +334,13 @@ fun CrewDetailScreen(
                 ) {
                     // 2. Challenge Header Card
                     item {
-                        val headerBackground = if (darkTheme) MaterialTheme.colorScheme.surface else DeepForest
-                        val headerTextColor = if (darkTheme) WalkCrewTheme.extendedColors.textPrimary else Color(0xFFF1F5EC)
-                        val headerSubtitleColor = if (darkTheme) WalkCrewTheme.extendedColors.textSecondary else Color(0xFFBAC7BF)
-
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .border(1.dp, WalkCrewTheme.extendedColors.divider, CardShape)
-                                .testTag("challenge_header_card"),
-                            shape = CardShape,
-                            color = headerBackground,
-                            shadowElevation = 0.dp
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(24.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    // "Week 41" label
-                                    Text(
-                                        text = "Week ${detailState.currentWeekNumber}",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = headerTextColor
-                                    )
-
-                                    // Countdown in lime
-                                    Box(
-                                        modifier = Modifier
-                                            .background(LimeAccent.copy(alpha = 0.18f), ButtonShape)
-                                            .border(1.dp, LimeAccent.copy(alpha = 0.4f), ButtonShape)
-                                            .padding(horizontal = 12.dp, vertical = 6.dp)
-                                    ) {
-                                        Text(
-                                            text = detailState.timeLeftFormatted,
-                                            fontFamily = PlusJakartaSansFamily,
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 12.sp,
-                                            color = LimeAccent
-                                        )
-                                    }
-                                }
-
-                                Spacer(modifier = Modifier.height(20.dp))
-
-                                // User's total steps in displayLarge tabular font
-                                Text(
-                                    text = NumberFormat.getNumberInstance(Locale.getDefault()).format(userDisplaySteps),
-                                    style = MaterialTheme.typography.displayLarge,
-                                    color = headerTextColor,
-                                    modifier = Modifier.testTag("user_total_steps_header")
-                                )
-
-                                Spacer(modifier = Modifier.height(2.dp))
-
-                                Text(
-                                    text = if (selectedTab == LeaderboardTab.THIS_WEEK) "your steps this week" else "your steps today",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = headerSubtitleColor
-                                )
-                            }
-                        }
+                        ChallengeHeaderCard(
+                            currentWeekNumber = detailState.currentWeekNumber,
+                            timeLeftFormatted = detailState.timeLeftFormatted,
+                            userDisplaySteps = userDisplaySteps,
+                            selectedTab = selectedTab,
+                            darkTheme = darkTheme
+                        )
                     }
 
                     // 3. Custom Pill Segmented Control
@@ -311,7 +352,7 @@ fun CrewDetailScreen(
                         )
                     }
 
-                    // 8. Empty state if only 1 member
+                    // Empty state if only 1 member
                     if (detailState.crew.members.size <= 1) {
                         item {
                             SingleMemberInviteCard(
@@ -334,7 +375,7 @@ fun CrewDetailScreen(
                         }
                     }
 
-                    // 5. Leaderboard rows for rank 4 and below (with Nudge + Reactions)
+                    // 5. Leaderboard rows for rank 4 and below
                     val runnersUp = activeLeaderboard.drop(3)
                     if (runnersUp.isNotEmpty()) {
                         items(runnersUp, key = { it.userId }) { member ->
@@ -437,6 +478,87 @@ fun CrewDetailScreen(
 }
 
 /**
+ * Challenge Header Card displaying current week, countdown, and user's steps
+ */
+@Composable
+private fun ChallengeHeaderCard(
+    currentWeekNumber: Int,
+    timeLeftFormatted: String,
+    userDisplaySteps: Long,
+    selectedTab: LeaderboardTab,
+    darkTheme: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val headerBackground = if (darkTheme) MaterialTheme.colorScheme.surface else DeepForest
+    val headerTextColor = if (darkTheme) WalkCrewTheme.extendedColors.textPrimary else Color(0xFFF1F5EC)
+    val headerSubtitleColor = if (darkTheme) WalkCrewTheme.extendedColors.textSecondary else Color(0xFFBAC7BF)
+
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .border(1.dp, WalkCrewTheme.extendedColors.divider, CardShape)
+            .testTag("challenge_header_card"),
+        shape = CardShape,
+        color = headerBackground,
+        shadowElevation = 0.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // "Week 41" label
+                Text(
+                    text = "Week $currentWeekNumber",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = headerTextColor
+                )
+
+                // Countdown in lime
+                Box(
+                    modifier = Modifier
+                        .background(LimeAccent.copy(alpha = 0.18f), ButtonShape)
+                        .border(1.dp, LimeAccent.copy(alpha = 0.4f), ButtonShape)
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = timeLeftFormatted,
+                        fontFamily = PlusJakartaSansFamily,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp,
+                        color = LimeAccent
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // User's total steps in displayLarge tabular font
+            Text(
+                text = NumberFormat.getNumberInstance(Locale.getDefault()).format(userDisplaySteps),
+                style = MaterialTheme.typography.displayLarge,
+                color = headerTextColor,
+                modifier = Modifier.testTag("user_total_steps_header")
+            )
+
+            Spacer(modifier = Modifier.height(2.dp))
+
+            Text(
+                text = if (selectedTab == LeaderboardTab.THIS_WEEK) "your steps this week" else "your steps today",
+                style = MaterialTheme.typography.bodyMedium,
+                color = headerSubtitleColor
+            )
+        }
+    }
+}
+
+/**
  * Custom Pill Segmented Control ("Today" and "This week")
  */
 @Composable
@@ -507,6 +629,7 @@ private fun PodiumSection(
     members: List<LeaderboardMember>,
     modifier: Modifier = Modifier
 ) {
+    val layoutInfo = rememberResponsiveLayoutInfo()
     val first = members.getOrNull(0)
     val second = members.getOrNull(1)
     val third = members.getOrNull(2)
@@ -523,6 +646,14 @@ private fun PodiumSection(
         )
     }
 
+    // Rule 3: Define a scale factor based on screen width relative to a 360dp baseline, clamped between 0.85 and 1.25.
+    // Apply it to podium column heights, avatar sizes, and text sizes.
+    val height1 = layoutInfo.scale(155.dp)
+    val height2 = layoutInfo.scale(110.dp)
+    val height3 = layoutInfo.scale(85.dp)
+    val avatar1 = layoutInfo.scale(52.dp)
+    val avatarOther = layoutInfo.scale(44.dp)
+
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceEvenly,
@@ -532,7 +663,8 @@ private fun PodiumSection(
         PodiumColumn(
             member = second,
             rank = 2,
-            targetHeight = 110.dp,
+            targetHeight = height2,
+            avatarSize = avatarOther,
             rankColor = RankSilver,
             growth = growthProgress.value,
             modifier = Modifier.weight(1f)
@@ -542,7 +674,8 @@ private fun PodiumSection(
         PodiumColumn(
             member = first,
             rank = 1,
-            targetHeight = 155.dp,
+            targetHeight = height1,
+            avatarSize = avatar1,
             rankColor = RankGold,
             growth = growthProgress.value,
             modifier = Modifier.weight(1.1f)
@@ -552,7 +685,8 @@ private fun PodiumSection(
         PodiumColumn(
             member = third,
             rank = 3,
-            targetHeight = 85.dp,
+            targetHeight = height3,
+            avatarSize = avatarOther,
             rankColor = RankBronze,
             growth = growthProgress.value,
             modifier = Modifier.weight(1f)
@@ -565,6 +699,7 @@ private fun PodiumColumn(
     member: LeaderboardMember?,
     rank: Int,
     targetHeight: androidx.compose.ui.unit.Dp,
+    avatarSize: androidx.compose.ui.unit.Dp,
     rankColor: Color,
     growth: Float,
     modifier: Modifier = Modifier
@@ -585,7 +720,7 @@ private fun PodiumColumn(
                 Avatar(
                     initials = member.displayName.take(2),
                     colorIndex = member.avatarColorIndex,
-                    size = if (rank == 1) 52.dp else 44.dp
+                    size = avatarSize
                 )
 
                 // Rank Circle
@@ -738,31 +873,37 @@ private fun LeaderboardRow(
                     )
                 }
 
-                // Small outlined pill button "Nudge" (except current user)
+                // Small outlined pill button "Nudge" (except current user) - min 48dp touch target
                 if (!isCurrentUser) {
                     Box(
                         modifier = Modifier
+                            .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
                             .clip(CircleShape)
-                            .border(
-                                width = 1.dp,
-                                color = if (isNudgedToday) WalkCrewTheme.extendedColors.divider else MaterialTheme.colorScheme.primary,
-                                shape = CircleShape
-                            )
                             .clickable(enabled = !isNudgedToday) { onNudgeClick() }
-                            .padding(horizontal = 10.dp, vertical = 4.dp)
                             .testTag("nudge_btn_${member.userId}"),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = if (isNudgedToday) "Nudged" else "Nudge",
-                            fontFamily = PlusJakartaSansFamily,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 11.sp,
-                            color = if (isNudgedToday) WalkCrewTheme.extendedColors.textSecondary else MaterialTheme.colorScheme.primary
-                        )
+                        Box(
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .border(
+                                    width = 1.dp,
+                                    color = if (isNudgedToday) WalkCrewTheme.extendedColors.divider else MaterialTheme.colorScheme.primary,
+                                    shape = CircleShape
+                                )
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = if (isNudgedToday) "Nudged" else "Nudge",
+                                fontFamily = PlusJakartaSansFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp,
+                                color = if (isNudgedToday) WalkCrewTheme.extendedColors.textSecondary else MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
 
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                 }
 
                 // Steps in bold right-aligned
@@ -864,7 +1005,7 @@ private fun FloatingReactionsBar(
                 reactionsList.forEach { (emoji, label) ->
                     Box(
                         modifier = Modifier
-                            .size(46.dp)
+                            .size(48.dp)
                             .clip(CircleShape)
                             .background(MaterialTheme.colorScheme.surfaceVariant)
                             .clickable { onReactionSelected(emoji) }
@@ -998,5 +1139,86 @@ private fun ShimmerLeaderboardSkeleton(modifier: Modifier = Modifier) {
                 .clip(CardShape)
                 .background(WalkCrewTheme.extendedColors.divider.copy(alpha = alpha))
         )
+    }
+}
+
+@DevicePreviews
+@FontScalePreviews
+@ThemePreviews
+@Composable
+private fun CrewDetailScreenContentPreview() {
+    val sampleMembers = listOf(
+        LeaderboardMember(
+            userId = "user_1",
+            displayName = "Alexandria Constantopoulos", // 25 characters to verify Rule 7!
+            steps = 24890L,
+            rank = 1,
+            avatarColorIndex = 2,
+            isCurrentUser = false
+        ),
+        LeaderboardMember(
+            userId = "user_2",
+            displayName = "Marcus Vance",
+            steps = 19430L,
+            rank = 2,
+            avatarColorIndex = 1,
+            isCurrentUser = true
+        ),
+        LeaderboardMember(
+            userId = "user_3",
+            displayName = "Sarah Chen",
+            steps = 15210L,
+            rank = 3,
+            avatarColorIndex = 0,
+            isCurrentUser = false
+        ),
+        LeaderboardMember(
+            userId = "user_4",
+            displayName = "Benjamin Worthington-Smyth", // 26 characters
+            steps = 12400L,
+            rank = 4,
+            avatarColorIndex = 3,
+            isCurrentUser = false
+        ),
+        LeaderboardMember(
+            userId = "user_5",
+            displayName = "Emma Watson",
+            steps = 9850L,
+            rank = 5,
+            avatarColorIndex = 4,
+            isCurrentUser = false
+        )
+    )
+
+    WalkCrewTheme {
+        Surface(color = MaterialTheme.colorScheme.background) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                ChallengeHeaderCard(
+                    currentWeekNumber = 41,
+                    timeLeftFormatted = "3d 14h left",
+                    userDisplaySteps = 19430L,
+                    selectedTab = LeaderboardTab.THIS_WEEK,
+                    darkTheme = isSystemInDarkTheme()
+                )
+
+                PodiumSection(members = sampleMembers.take(3))
+
+                sampleMembers.drop(3).forEach { member ->
+                    LeaderboardRow(
+                        member = member,
+                        maxSteps = 24890L,
+                        reactions = mapOf("🔥" to 2),
+                        isNudgedToday = false,
+                        onNudgeClick = {},
+                        onLongPress = {}
+                    )
+                }
+            }
+        }
     }
 }

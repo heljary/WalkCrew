@@ -17,14 +17,25 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.text.style.TextOverflow
+import com.example.ui.util.DevicePreviews
+import com.example.ui.util.FontScalePreviews
+import com.example.ui.util.ThemePreviews
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Group
 import androidx.compose.material.icons.rounded.Home
@@ -213,7 +224,7 @@ fun StatCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 18.dp),
+                .padding(horizontal = 8.dp, vertical = 14.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -221,22 +232,28 @@ fun StatCard(
                 text = title,
                 style = MaterialTheme.typography.labelSmall,
                 color = WalkCrewTheme.extendedColors.textSecondary,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = value,
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = WalkCrewTheme.extendedColors.textPrimary,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = unit,
                 style = MaterialTheme.typography.labelSmall,
                 color = WalkCrewTheme.extendedColors.textSecondary,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }
@@ -341,8 +358,21 @@ fun StepRing(
     currentSteps: Long,
     goalSteps: Long = 8000L,
     modifier: Modifier = Modifier,
+    customDiameter: Dp? = null,
     testTag: String = "step_ring"
 ) {
+    val configuration = LocalConfiguration.current
+    val screenWidth = configuration.screenWidthDp.dp
+    val isSmallHeight = configuration.screenHeightDp < 640
+
+    val ringDiameter = customDiameter ?: if (isSmallHeight) {
+        200.dp
+    } else {
+        val calcWidth = screenWidth * 0.62f
+        if (calcWidth < 280.dp) calcWidth else 280.dp
+    }
+    val strokeWidthDp = ringDiameter * 0.075f
+
     val darkTheme = isSystemInDarkTheme()
     val gradientStart = if (darkTheme) RingGradientDarkStart else RingGradientLightStart
     val gradientEnd = if (darkTheme) RingGradientDarkEnd else RingGradientLightEnd
@@ -387,12 +417,12 @@ fun StepRing(
 
     Box(
         modifier = modifier
-            .size(240.dp)
+            .size(ringDiameter)
             .testTag(testTag),
         contentAlignment = Alignment.Center
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            val strokeWidthPx = 18.dp.toPx()
+            val strokeWidthPx = strokeWidthDp.toPx()
             val diameter = size.minDimension - strokeWidthPx
             val topLeft = Offset(
                 x = (size.width - diameter) / 2f,
@@ -433,23 +463,28 @@ fun StepRing(
         }
 
         // Center Content
+        val numberFontSize = (ringDiameter.value * 0.16f).coerceIn(24f, 44f).sp
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
-            modifier = Modifier.padding(horizontal = 24.dp)
+            modifier = Modifier.padding(horizontal = ringDiameter * 0.08f)
         ) {
             Text(
                 text = formattedSteps,
-                style = MaterialTheme.typography.displayLarge,
+                style = MaterialTheme.typography.displayLarge.copy(fontSize = numberFontSize),
                 color = WalkCrewTheme.extendedColors.textPrimary,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = "of $formattedGoal steps",
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
                 color = WalkCrewTheme.extendedColors.textSecondary,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }
@@ -483,14 +518,15 @@ fun FloatingPillNavBar(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .navigationBarsPadding()
-            .padding(horizontal = Spacing.screenHorizontal, vertical = 16.dp),
+            .windowInsetsPadding(WindowInsets.navigationBars)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         contentAlignment = Alignment.Center
     ) {
         Surface(
             modifier = Modifier
                 .height(64.dp)
                 .fillMaxWidth()
+                .widthIn(max = 480.dp)
                 .border(
                     width = if (darkTheme) 1.dp else 0.dp,
                     color = borderDivider,
@@ -534,6 +570,7 @@ private fun FloatingNavItem(
 
     Box(
         modifier = Modifier
+            .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
             .clip(ActiveTabPillShape)
             .then(
                 if (isSelected) {
@@ -545,7 +582,7 @@ private fun FloatingNavItem(
                 indication = ripple(bounded = true, color = activeContentColor),
                 onClick = onClick
             )
-            .padding(horizontal = 18.dp, vertical = 10.dp)
+            .padding(horizontal = 16.dp, vertical = 10.dp)
             .testTag("nav_tab_${tab.name.lowercase()}"),
         contentAlignment = Alignment.Center
     ) {
@@ -565,7 +602,60 @@ private fun FloatingNavItem(
                     text = tab.title,
                     color = activeContentColor,
                     style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1
+                )
+            }
+        }
+    }
+}
+
+@DevicePreviews
+@FontScalePreviews
+@ThemePreviews
+@Composable
+private fun ComponentsPreview() {
+    WalkCrewTheme {
+        Surface(color = MaterialTheme.colorScheme.background) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                StepRing(
+                    currentSteps = 6420L,
+                    goalSteps = 8000L
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    StatCard(
+                        title = "Distance",
+                        value = "5.2",
+                        unit = "km",
+                        modifier = Modifier.weight(1f)
+                    )
+                    StatCard(
+                        title = "Calories",
+                        value = "340",
+                        unit = "kcal",
+                        modifier = Modifier.weight(1f)
+                    )
+                    StatCard(
+                        title = "Active time",
+                        value = "48",
+                        unit = "mins",
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                FloatingPillNavBar(
+                    selectedTab = NavigationTab.HOME,
+                    onTabSelected = {}
                 )
             }
         }

@@ -18,9 +18,13 @@ import java.util.concurrent.TimeUnit
 
 class MainActivity : ComponentActivity() {
 
+    @OptIn(androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Ensure Firebase is initialized
+        com.example.data.FirebaseInitializer.ensureInitialized(this)
 
         // Schedule periodic step sync every 15 minutes with WorkManager
         scheduleStepSyncWorker()
@@ -29,12 +33,17 @@ class MainActivity : ComponentActivity() {
         com.example.notifications.DailyReminderWorker.scheduleDailyReminder(applicationContext)
 
         setContent {
-            WalkCrewTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    WalkCrewApp()
+            val windowSizeClass = androidx.compose.material3.windowsizeclass.calculateWindowSizeClass(this)
+            androidx.compose.runtime.CompositionLocalProvider(
+                com.example.ui.util.LocalAppWindowSizeClass provides windowSizeClass
+            ) {
+                WalkCrewTheme {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.background
+                    ) {
+                        WalkCrewApp()
+                    }
                 }
             }
         }

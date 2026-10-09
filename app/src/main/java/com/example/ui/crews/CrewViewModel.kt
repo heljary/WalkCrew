@@ -101,6 +101,12 @@ class CrewViewModel(application: Application) : AndroidViewModel(application) {
 
     fun createCrew(name: String, duration: String = "Weekly", onCreated: (CrewModel) -> Unit = {}) {
         val uid = currentUserId ?: return
+        if (!isPremium.value && _crews.value.size >= 2) {
+            _showCreateSheet.value = false
+            _paywallReason.value = "Free members can join up to 2 crews. Upgrade to Premium for unlimited crews!"
+            _showPaywall.value = true
+            return
+        }
         viewModelScope.launch {
             _isLoading.value = true
             _errorMessage.value = null
@@ -119,6 +125,12 @@ class CrewViewModel(application: Application) : AndroidViewModel(application) {
 
     fun joinCrewWithCode(code: String, onJoined: (CrewModel) -> Unit = {}) {
         val uid = currentUserId ?: return
+        if (!isPremium.value && _crews.value.size >= 2) {
+            _showJoinSheet.value = false
+            _paywallReason.value = "Free members can join up to 2 crews. Upgrade to Premium for unlimited crews!"
+            _showPaywall.value = true
+            return
+        }
         if (code.length != 6) {
             _errorMessage.value = "Invite code must be 6 characters"
             return

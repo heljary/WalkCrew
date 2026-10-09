@@ -6,7 +6,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -63,7 +67,10 @@ fun SixBoxCodeInput(
 
             Box(
                 modifier = Modifier
-                    .size(width = 48.dp, height = 54.dp)
+                    .weight(1f)
+                    .padding(horizontal = 2.dp)
+                    .heightIn(min = 48.dp, max = 56.dp)
+                    .aspectRatio(0.88f)
                     .background(
                         color = MaterialTheme.colorScheme.surface,
                         shape = RoundedCornerShape(14.dp)
@@ -108,7 +115,7 @@ fun SixBoxCodeInput(
                         }
                     },
                     modifier = Modifier
-                        .size(48.dp)
+                        .fillMaxSize()
                         .focusRequester(focusRequesters[i])
                         .onKeyEvent { keyEvent ->
                             if (keyEvent.key == Key.Backspace) {

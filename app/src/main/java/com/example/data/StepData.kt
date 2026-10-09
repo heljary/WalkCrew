@@ -14,6 +14,8 @@ data class DailyStepData(
         get() = (steps.toFloat() / goal.toFloat()).coerceIn(0f, 2f)
 }
 
+typealias UserStats = UserStepStats
+
 data class UserStepStats(
     val steps: Long = 0L,
     val goal: Long = 8000L,
