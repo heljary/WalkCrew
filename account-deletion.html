@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WalkCrew - Account & Data Deletion Request</title>
+    <style>
+        :root {
+            --bg-color: #0B1E17;
+            --surface-color: #122B22;
+            --text-primary: #F1F5EC;
+            --text-secondary: #9DB2A5;
+            --accent-lime: #C8F23C;
+            --accent-coral: #FF6B4A;
+            --border-color: #244B3C;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            line-height: 1.6;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 680px;
+            margin: 0 auto;
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 36px 32px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+        }
+
+        .badge {
+            display: inline-block;
+            background: rgba(200, 242, 60, 0.15);
+            color: var(--accent-lime);
+            padding: 6px 14px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            border: 1px solid rgba(200, 242, 60, 0.3);
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 800;
+            margin-bottom: 12px;
+            letter-spacing: -0.5px;
+        }
+
+        p {
+            color: var(--text-secondary);
+            font-size: 15px;
+            margin-bottom: 20px;
+        }
+
+        .info-card {
+            background: rgba(0, 0, 0, 0.25);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 24px 0;
+            border-left: 4px solid var(--accent-coral);
+        }
+
+        .info-card h3 {
+            color: var(--text-primary);
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+
+        .info-card ul {
+            list-style: disc;
+            margin-left: 20px;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .info-card li {
+            margin-bottom: 6px;
+        }
+
+        .step-section {
+            margin: 28px 0;
+        }
+
+        .step-section h2 {
+            font-size: 18px;
+            color: var(--accent-lime);
+            margin-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        label {
+            display: block;
+            font-size: 14px;
+            color: var(--text-primary);
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        input[type="email"],
+        input[type="text"],
+        textarea {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 12px 14px;
+            color: var(--text-primary);
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input:focus,
+        textarea:focus {
+            border-color: var(--accent-lime);
+        }
+
+        .btn {
+            display: inline-block;
+            background: var(--accent-coral);
+            color: #FFFFFF;
+            font-weight: 700;
+            font-size: 15px;
+            padding: 14px 24px;
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+            width: 100%;
+            transition: opacity 0.2s;
+            text-align: center;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        .footer {
+            margin-top: 32px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-align: center;
+        }
+
+        .footer a {
+            color: var(--accent-lime);
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="badge">Google Play Data Safety & User Rights</div>
+    <h1>WalkCrew Account & Data Deletion</h1>
+    <p>
+        In compliance with Google Play User Data policies, WalkCrew allows all users to request the permanent deletion of their account and all associated fitness, social, and personal data.
+    </p>
+
+    <div class="step-section">
+        <h2>Method 1: Instant In-App Deletion (Recommended)</h2>
+        <p>
+            You can delete your account immediately inside the WalkCrew Android application:
+        </p>
+        <ol style="margin-left: 20px; color: var(--text-secondary); font-size: 14px; line-height: 1.8;">
+            <li>Open the <strong>WalkCrew</strong> app on your Android device.</li>
+            <li>Tap the <strong>Profile</strong> tab in the bottom navigation bar.</li>
+            <li>Scroll down to the <strong>Account</strong> section.</li>
+            <li>Tap <strong>Delete my account and all data</strong>.</li>
+            <li>Confirm by tapping the red <strong>Permanently Delete</strong> button.</li>
+        </ol>
+    </div>
+
+    <div class="info-card">
+        <h3>What Data is Permanently Deleted</h3>
+        <ul>
+            <li><strong>Authentication Record:</strong> Your Firebase Auth credentials (UID, Google account link).</li>
+            <li><strong>User Profile:</strong> Name, handle, display color index, daily step goal, notification settings, and FCM device tokens.</li>
+            <li><strong>Step & Activity History:</strong> Daily step counts, weekly records, and streak logs.</li>
+            <li><strong>Crew Memberships:</strong> Automatic removal from all crews you joined or created.</li>
+            <li><strong>Social Interactions:</strong> Nudge records and reactions left on crew leaderboards.</li>
+            <li><strong>Local Cache:</strong> DataStore keys, local step database, and cached preferences on your device.</li>
+        </ul>
+        <p style="margin-top: 10px; font-size: 13px; color: #E0E0E0;">
+            * Data retention period: Deletion is processed immediately upon request and is non-reversible.
+        </p>
+    </div>
+
+    <div class="step-section">
+        <h2>Method 2: Web Deletion Request Form</h2>
+        <p>
+            If you no longer have access to the app or device, submit your request below using the email linked to your WalkCrew account. Requests are processed within 48 hours.
+        </p>
+
+        <form action="mailto:support@walkcrew.app?subject=Account%20and%20Data%20Deletion%20Request" method="post" enctype="text/plain">
+            <div class="form-group">
+                <label for="email">Google Account Email used in WalkCrew</label>
+                <input type="email" id="email" name="user_email" required placeholder="name@example.com">
+            </div>
+
+            <div class="form-group">
+                <label for="uid">Optional WalkCrew User ID or Display Name</label>
+                <input type="text" id="uid" name="user_identifier" placeholder="e.g. Alex Walker">
+            </div>
+
+            <div class="form-group">
+                <label for="notes">Additional Information (Optional)</label>
+                <textarea id="notes" name="notes" rows="3" placeholder="Confirming deletion of account and all step data."></textarea>
+            </div>
+
+            <button type="submit" class="btn">Submit Account Deletion Request</button>
+        </form>
+    </div>
+
+    <div class="footer">
+        <p>WalkCrew adheres to strict zero-selling policies for personal and health data.</p>
+        <p><a href="#privacy">Privacy Policy</a> &bull; <a href="#terms">Terms of Service</a> &bull; Contact: support@walkcrew.app</p>
+    </div>
+</div>
+
+</body>
+</html>

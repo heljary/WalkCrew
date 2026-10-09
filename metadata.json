@@ -1,0 +1,6 @@
+{
+  "name": "WalkCrew",
+  "description": "A group step-challenge app with Health Connect integration, daily goals, and crew step competitions.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

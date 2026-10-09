@@ -1,0 +1,78 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with display name and avatar color",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Unique Firebase Auth user ID" },
+        "displayName": { "type": "string", "description": "User display name" },
+        "avatarColorIndex": { "type": "integer", "description": "Index 0-7 of avatar preset color" },
+        "dailyStepGoal": { "type": "integer", "description": "Daily step target, default 8000" },
+        "todaySteps": { "type": "integer", "description": "Latest synced steps for today" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp of profile creation" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp of last update" }
+      },
+      "required": ["userId", "displayName", "avatarColorIndex", "dailyStepGoal", "createdAt", "updatedAt"]
+    },
+    "Crew": {
+      "title": "Crew",
+      "description": "Walking group challenge crew",
+      "type": "object",
+      "properties": {
+        "crewId": { "type": "string", "description": "Unique crew ID" },
+        "name": { "type": "string", "description": "Name of the crew" },
+        "inviteCode": { "type": "string", "description": "Unique 6-character alphanumeric invite code" },
+        "ownerId": { "type": "string", "description": "User ID of the crew creator" },
+        "members": { "type": "array", "description": "List of member user IDs" },
+        "duration": { "type": "string", "description": "Challenge duration type (e.g. Weekly)" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp of crew creation" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp of last update" }
+      },
+      "required": ["crewId", "name", "inviteCode", "ownerId", "members", "duration", "createdAt", "updatedAt"]
+    },
+    "StepLog": {
+      "title": "StepLog",
+      "description": "Daily step record logged by a member in a crew",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "User ID logging the steps" },
+        "crewId": { "type": "string", "description": "Crew ID" },
+        "date": { "type": "string", "description": "Date formatted YYYY-MM-DD" },
+        "steps": { "type": "integer", "description": "Total steps for the day" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["userId", "crewId", "date", "steps", "createdAt", "updatedAt"]
+    },
+    "InviteCodeLookup": {
+      "title": "InviteCodeLookup",
+      "description": "Public lookup mapping 6-character code to crewId",
+      "type": "object",
+      "properties": {
+        "code": { "type": "string", "description": "6-character invite code" },
+        "crewId": { "type": "string", "description": "Referenced crew ID" },
+        "crewName": { "type": "string", "description": "Name of the crew" }
+      },
+      "required": ["code", "crewId", "crewName"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profile collection"
+    },
+    "/crews/{crewId}": {
+      "schema": { "$ref": "#/entities/Crew" },
+      "description": "Walking crew collection"
+    },
+    "/crews/{crewId}/stepLogs/{logId}": {
+      "schema": { "$ref": "#/entities/StepLog" },
+      "description": "Daily member step logs for leaderboard calculations"
+    },
+    "/inviteCodes/{code}": {
+      "schema": { "$ref": "#/entities/InviteCodeLookup" },
+      "description": "Lookup index for crew invite codes"
+    }
+  }
+}
