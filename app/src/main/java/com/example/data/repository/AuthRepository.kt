@@ -31,6 +31,7 @@ import com.google.firebase.auth.FirebaseAuthWeakPasswordException
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.UserProfileChangeRequest
+import com.example.data.api.WorkerApi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -92,11 +93,11 @@ class AuthRepository(
                 user.updateProfile(profileUpdates).await()
             }
 
-            // Send email verification
+            // Send initial 6-digit verification code
             try {
-                user.sendEmailVerification().await()
+                sendVerificationCode()
             } catch (e: Exception) {
-                Log.w(TAG, "Failed to send initial email verification: ${e.message}")
+                Log.w(TAG, "Failed to send initial verification code: ${e.message}")
             }
 
             _currentUser.value = user
@@ -135,16 +136,22 @@ class AuthRepository(
         }
     }
 
-    // --- Email Verification ---
-    suspend fun sendEmailVerification(): Result<Unit> {
-        return try {
-            val user = auth.currentUser ?: return Result.failure(Exception("No user logged in"))
-            user.sendEmailVerification().await()
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to send email verification: ${e.message}", e)
-            Result.failure(e)
+    // --- Email Verification (OTP via Cloudflare Worker) ---
+    private val workerApi = WorkerApi.getInstance()
+
+    suspend fun sendVerificationCode(): Result<Unit> {
+        return workerApi.sendCode()
+    }
+
+    suspend fun verifyEmailCode(code: String): Result<Unit> {
+        val result = workerApi.verifyCode(code)
+        if (result.isSuccess) {
+            val user = auth.currentUser
+            user?.reload()?.await()
+            user?.getIdToken(true)?.await()
+            _currentUser.value = auth.currentUser
         }
+        return result
     }
 
     suspend fun reloadUser(): Result<FirebaseUser> {
@@ -477,6 +484,9 @@ class AuthRepository(
         // --- Friendly Error Mapping (Never raw exception strings) ---
         fun getFriendlyErrorMessage(throwable: Throwable?): String {
             if (throwable == null) return "An unexpected error occurred."
+            if (throwable is WorkerApi.WorkerException) {
+                return WorkerApi.getFriendlyMessage(throwable)
+            }
             val msg = throwable.message ?: ""
             return when {
                 throwable is FirebaseAuthInvalidUserException ->

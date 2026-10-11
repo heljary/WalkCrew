@@ -5,7 +5,6 @@ import android.util.Log
 import com.example.R
 import com.example.data.models.UserProfile
 import com.google.firebase.firestore.FieldValue
-import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import com.google.firebase.firestore.snapshots
@@ -33,7 +32,7 @@ class UserRepository(private val context: Context) {
                 }
             }
             .catch { error ->
-                Log.e(TAG, "Error observing user profile: ${error.message}", error)
+                Log.d(TAG, "Observing user profile: ${error.message}")
                 emit(null)
             }
     }
@@ -43,7 +42,7 @@ class UserRepository(private val context: Context) {
             val doc = db.collection("users").document(userId).get().await()
             if (doc.exists()) doc.toObject(UserProfile::class.java) else null
         } catch (e: Exception) {
-            Log.e(TAG, "Error fetching user profile: ${e.message}", e)
+            Log.d(TAG, "User profile not found or offline: ${e.message}")
             null
         }
     }
@@ -51,7 +50,6 @@ class UserRepository(private val context: Context) {
     suspend fun saveUserProfile(profile: UserProfile): Result<Unit> {
         return try {
             val userRef = db.collection("users").document(profile.userId)
-            val doc = userRef.get().await()
 
             val payload = hashMapOf<String, Any>(
                 "userId" to profile.userId,
@@ -60,21 +58,24 @@ class UserRepository(private val context: Context) {
                 "dailyStepGoal" to profile.dailyStepGoal,
                 "todaySteps" to profile.todaySteps,
                 "reminderEnabled" to profile.reminderEnabled,
+                "streakDays" to profile.streakDays,
                 "updatedAt" to FieldValue.serverTimestamp()
             )
+
+            if (profile.createdAt != null) {
+                payload["createdAt"] = profile.createdAt
+            } else {
+                payload["createdAt"] = FieldValue.serverTimestamp()
+            }
 
             if (profile.fcmToken.isNotBlank()) {
                 payload["fcmToken"] = profile.fcmToken
             }
 
-            if (!doc.exists()) {
-                payload["createdAt"] = FieldValue.serverTimestamp()
-            }
-
             userRef.set(payload, SetOptions.merge()).await()
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.e(TAG, "Error saving user profile: ${e.message}", e)
+            Log.w(TAG, "Saving user profile: ${e.message}")
             Result.failure(e)
         }
     }
@@ -82,15 +83,16 @@ class UserRepository(private val context: Context) {
     suspend fun updateDailyGoal(userId: String, goal: Long): Result<Unit> {
         return try {
             val userRef = db.collection("users").document(userId)
-            userRef.update(
+            userRef.set(
                 mapOf(
                     "dailyStepGoal" to goal,
                     "updatedAt" to FieldValue.serverTimestamp()
-                )
+                ),
+                SetOptions.merge()
             ).await()
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.e(TAG, "Error updating daily goal: ${e.message}", e)
+            Log.w(TAG, "Updating daily goal: ${e.message}")
             Result.failure(e)
         }
     }
@@ -98,15 +100,16 @@ class UserRepository(private val context: Context) {
     suspend fun updateReminderEnabled(userId: String, enabled: Boolean): Result<Unit> {
         return try {
             val userRef = db.collection("users").document(userId)
-            userRef.update(
+            userRef.set(
                 mapOf(
                     "reminderEnabled" to enabled,
                     "updatedAt" to FieldValue.serverTimestamp()
-                )
+                ),
+                SetOptions.merge()
             ).await()
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.e(TAG, "Error updating reminder setting: ${e.message}", e)
+            Log.w(TAG, "Updating reminder setting: ${e.message}")
             Result.failure(e)
         }
     }
@@ -114,15 +117,16 @@ class UserRepository(private val context: Context) {
     suspend fun updateTodaySteps(userId: String, steps: Long): Result<Unit> {
         return try {
             val userRef = db.collection("users").document(userId)
-            userRef.update(
+            userRef.set(
                 mapOf(
                     "todaySteps" to steps,
                     "updatedAt" to FieldValue.serverTimestamp()
-                )
+                ),
+                SetOptions.merge()
             ).await()
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.e(TAG, "Error updating steps: ${e.message}", e)
+            Log.w(TAG, "Updating steps: ${e.message}")
             Result.failure(e)
         }
     }
@@ -132,7 +136,7 @@ class UserRepository(private val context: Context) {
             db.collection("users").document(userId).delete().await()
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.e(TAG, "Error deleting user profile: ${e.message}", e)
+            Log.w(TAG, "Deleting user profile: ${e.message}")
             Result.failure(e)
         }
     }

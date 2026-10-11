@@ -566,7 +566,7 @@ private fun FloatingNavItem(
 ) {
     val activePillColor = LimeAccent
     val activeContentColor = DeepForest
-    val inactiveContentColor = Color(0xFFBAC7BF)
+    val inactiveContentColor = Color.White.copy(alpha = 0.65f)
 
     Box(
         modifier = Modifier

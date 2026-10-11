@@ -26,11 +26,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -167,6 +171,7 @@ fun CrewsScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         modifier = modifier.fillMaxSize()
     ) { innerPadding ->
         Box(
@@ -176,12 +181,17 @@ fun CrewsScreen(
                 .statusBarsPadding(),
             contentAlignment = Alignment.TopCenter
         ) {
+            val navBarBottomPadding = 24.dp
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .widthIn(max = 640.dp)
-                    .padding(horizontal = Spacing.screenHorizontal)
-                    .padding(top = 12.dp, bottom = 96.dp),
+                    .widthIn(max = 640.dp),
+                contentPadding = PaddingValues(
+                    start = Spacing.screenHorizontal,
+                    end = Spacing.screenHorizontal,
+                    top = 12.dp,
+                    bottom = navBarBottomPadding
+                ),
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
                 // Header with title and quick actions
@@ -286,29 +296,37 @@ fun CrewsScreen(
                     }
                 }
 
-                // Active Crew Overview Hero Card
+                // Active Crew Overview Hero Card or Empty State
                 item {
-                    val crewName = activeCrew?.crew?.name ?: "Weekend Striders"
-                    val inviteCode = activeCrew?.crew?.inviteCode ?: "STRIDE"
-                    val duration = activeCrew?.crew?.duration ?: "Weekly"
+                    if (crews.isEmpty()) {
+                        EmptyCrewsCard(
+                            onCreateClick = { viewModel.openCreateSheet() },
+                            onJoinClick = { viewModel.openJoinSheet() }
+                        )
+                    } else {
+                        val crew = activeCrew?.crew ?: crews.first().crew
+                        val crewName = crew.name
+                        val inviteCode = crew.inviteCode
+                        val duration = crew.duration
 
-                    CrewOverviewHeroCard(
-                        crewName = crewName,
-                        duration = duration,
-                        totalStepsToday = totalCrewDailySteps,
-                        totalGoalToday = totalCrewDailyGoal,
-                        memberCount = friendsProgress.size,
-                        inviteCode = inviteCode,
-                        onShareCode = { viewModel.shareInviteCode(context, inviteCode) },
-                        onCopyCode = {
-                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                            clipboard.setPrimaryClip(ClipData.newPlainText("WalkCrew Code", inviteCode))
-                            Toast.makeText(context, "Code $inviteCode copied! 📋", Toast.LENGTH_SHORT).show()
-                        },
-                        onCardClick = {
-                            activeCrew?.crew?.crewId?.let { id -> onCrewClick(id) }
-                        }
-                    )
+                        CrewOverviewHeroCard(
+                            crewName = crewName,
+                            duration = duration,
+                            totalStepsToday = totalCrewDailySteps,
+                            totalGoalToday = totalCrewDailyGoal,
+                            memberCount = friendsProgress.size,
+                            inviteCode = inviteCode,
+                            onShareCode = { viewModel.shareInviteCode(context, inviteCode) },
+                            onCopyCode = {
+                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                clipboard.setPrimaryClip(ClipData.newPlainText("WalkCrew Code", inviteCode))
+                                Toast.makeText(context, "Code $inviteCode copied! 📋", Toast.LENGTH_SHORT).show()
+                            },
+                            onCardClick = {
+                                onCrewClick(crew.crewId)
+                            }
+                        )
+                    }
                 }
 
                 // Friends & Daily Step Progress Section Header + Filter Pills

@@ -97,7 +97,7 @@ class CrewViewModel(application: Application) : AndroidViewModel(application) {
                     observeCrewFriends(targetCrew.crew.crewId)
                 } else {
                     _activeCrew.value = null
-                    _friendsProgress.value = generateDefaultFriends(uid)
+                    _friendsProgress.value = emptyList()
                 }
             }
         }
@@ -117,11 +117,7 @@ class CrewViewModel(application: Application) : AndroidViewModel(application) {
 
         crewDetailsJob = viewModelScope.launch {
             crewRepository.observeCrewDetails(crewId, uid).collect { details ->
-                if (details.todayLeaderboard.isNotEmpty()) {
-                    _friendsProgress.value = details.todayLeaderboard
-                } else {
-                    _friendsProgress.value = generateDefaultFriends(uid)
-                }
+                _friendsProgress.value = details.todayLeaderboard
             }
         }
 
@@ -295,67 +291,5 @@ class CrewViewModel(application: Application) : AndroidViewModel(application) {
 
     fun clearError() {
         _errorMessage.value = null
-    }
-
-    private fun generateDefaultFriends(currentUid: String): List<LeaderboardMember> {
-        val userCurrentSteps = stepRepository.userStats.value.steps
-        val userGoal = stepRepository.userStats.value.goal
-
-        val list = mutableListOf(
-            LeaderboardMember(
-                userId = "friend_alex",
-                displayName = "Alex Rivera",
-                avatarColorIndex = 1,
-                steps = 9420L,
-                rank = 1,
-                dailyStepGoal = 10000L,
-                streakDays = 7,
-                statusText = "Walking now 🚶"
-            ),
-            LeaderboardMember(
-                userId = "friend_marcus",
-                displayName = "Marcus Chen",
-                avatarColorIndex = 2,
-                steps = 8250L,
-                rank = 2,
-                dailyStepGoal = 8000L,
-                streakDays = 5,
-                statusText = "Goal crushed! 🎯"
-            ),
-            LeaderboardMember(
-                userId = currentUid,
-                displayName = "You",
-                avatarColorIndex = 0,
-                steps = userCurrentSteps,
-                rank = 3,
-                isCurrentUser = true,
-                dailyStepGoal = userGoal,
-                streakDays = 3,
-                statusText = if (userCurrentSteps >= userGoal) "Goal crushed! 🎯" else "On track today"
-            ),
-            LeaderboardMember(
-                userId = "friend_elena",
-                displayName = "Elena Rostova",
-                avatarColorIndex = 4,
-                steps = 6840L,
-                rank = 4,
-                dailyStepGoal = 8000L,
-                streakDays = 4,
-                statusText = "Synced 15m ago"
-            ),
-            LeaderboardMember(
-                userId = "friend_jordan",
-                displayName = "Jordan Smith",
-                avatarColorIndex = 5,
-                steps = 5120L,
-                rank = 5,
-                dailyStepGoal = 10000L,
-                streakDays = 2,
-                statusText = "Afternoon walk soon"
-            )
-        )
-
-        return list.sortedByDescending { it.steps }
-            .mapIndexed { index, member -> member.copy(rank = index + 1) }
     }
 }

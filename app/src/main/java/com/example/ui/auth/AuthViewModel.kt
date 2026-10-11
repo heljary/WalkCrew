@@ -147,6 +147,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
             result.onSuccess { user ->
                 if (!authRepository.isEmailVerified()) {
+                    authRepository.sendVerificationCode()
+                    startCooldownTimer()
                     _uiState.value = AuthUiState.EmailVerificationRequired(user)
                 } else {
                     loadUserProfile(user)
@@ -175,21 +177,24 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // --- Check & Reload Email Verification ---
-    fun checkEmailVerification() {
-        if (_isSigningIn.value) return
+    // --- Verify Email Code (OTP) ---
+    fun verifyEmailCode(code: String) {
+        if (_isSigningIn.value || code.length != 6) return
         viewModelScope.launch {
             _isSigningIn.value = true
             _errorMessage.value = null
-            val result = authRepository.reloadUser()
+            val result = authRepository.verifyEmailCode(code)
             _isSigningIn.value = false
 
-            result.onSuccess { user ->
-                if (user.isEmailVerified) {
-                    _successMessage.value = "Email verified successfully!"
-                    loadUserProfile(user)
-                } else {
-                    _errorMessage.value = "Email not verified yet. Please click the link sent to ${user.email}."
+            result.onSuccess {
+                _successMessage.value = "Email verified successfully!"
+                val user = authRepository.auth.currentUser
+                if (user != null) {
+                    val fallbackName = user.displayName?.takeIf { it.isNotBlank() } ?: "Walker"
+                    _uiState.value = AuthUiState.NeedsProfileSetup(
+                        user = user,
+                        defaultName = fallbackName
+                    )
                 }
             }.onFailure { error ->
                 _errorMessage.value = AuthRepository.getFriendlyErrorMessage(error)
@@ -197,18 +202,18 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // --- Resend Email Verification ---
+    // --- Resend Verification Code ---
     fun resendVerificationEmail() {
         if (_resendCooldown.value > 0 || _isSigningIn.value) return
         viewModelScope.launch {
             _isSigningIn.value = true
             _errorMessage.value = null
-            val result = authRepository.sendEmailVerification()
+            val result = authRepository.sendVerificationCode()
             _isSigningIn.value = false
 
             result.onSuccess {
                 startCooldownTimer()
-                _successMessage.value = "Verification link resent! Check your inbox."
+                _successMessage.value = "Verification code resent! Check your inbox."
             }.onFailure { error ->
                 _errorMessage.value = AuthRepository.getFriendlyErrorMessage(error)
             }

@@ -71,6 +71,7 @@ private val DarkExtendedColors = WalkCrewExtendedColors(
     highlight = CoralHighlight,
     textPrimary = DarkTextPrimary,
     textSecondary = DarkTextSecondary,
+    textTertiary = DarkTextTertiary,
     divider = DarkDivider,
     rankGold = RankGold,
     rankSilver = RankSilver,

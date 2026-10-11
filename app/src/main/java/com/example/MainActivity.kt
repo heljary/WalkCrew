@@ -32,6 +32,9 @@ class MainActivity : ComponentActivity() {
         // Schedule daily 6:00 PM reminder check
         com.example.notifications.DailyReminderWorker.scheduleDailyReminder(applicationContext)
 
+        // Schedule periodic nudge check worker
+        com.example.notifications.NudgeCheckWorker.scheduleNudgeCheck(applicationContext)
+
         setContent {
             val windowSizeClass = androidx.compose.material3.windowsizeclass.calculateWindowSizeClass(this)
             androidx.compose.runtime.CompositionLocalProvider(

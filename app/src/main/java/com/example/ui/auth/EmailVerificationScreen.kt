@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,6 +17,9 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Email
@@ -23,8 +27,12 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -32,17 +40,25 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.ButtonShape
+import com.example.ui.theme.CoralAlert
 import com.example.ui.theme.DeepForest
 import com.example.ui.theme.LimeAccent
 import com.example.ui.theme.PlusJakartaSansFamily
@@ -62,6 +78,7 @@ fun EmailVerificationScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     val userEmail = user.email ?: "your email address"
+    var otpCode by remember { mutableStateOf("") }
 
     LaunchedEffect(errorMessage) {
         errorMessage?.let {
@@ -74,6 +91,12 @@ fun EmailVerificationScreen(
         successMessage?.let {
             snackbarHostState.showSnackbar(it)
             viewModel.clearSuccessMessage()
+        }
+    }
+
+    LaunchedEffect(otpCode) {
+        if (otpCode.length == 6 && !isSigningIn) {
+            viewModel.verifyEmailCode(otpCode)
         }
     }
 
@@ -105,7 +128,7 @@ fun EmailVerificationScreen(
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Email,
-                    contentDescription = "Verify Email",
+                    contentDescription = "Check your email",
                     tint = LimeAccent,
                     modifier = Modifier.size(52.dp)
                 )
@@ -115,7 +138,7 @@ fun EmailVerificationScreen(
 
             // Title
             Text(
-                text = "Verify Your Email",
+                text = "Check your email",
                 fontFamily = PlusJakartaSansFamily,
                 fontWeight = FontWeight.ExtraBold,
                 fontSize = 30.sp,
@@ -125,9 +148,9 @@ fun EmailVerificationScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Instructions
+            // Subtext
             Text(
-                text = "We sent a confirmation link to:\n$userEmail\n\nPlease tap the link in that email to activate your account and start walking with your crew.",
+                text = "We sent a 6-digit code to\n$userEmail\n\nEnter the code below to activate your WalkCrew account.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color(0xFFBAC7BF),
                 textAlign = TextAlign.Center,
@@ -136,10 +159,28 @@ fun EmailVerificationScreen(
 
             Spacer(modifier = Modifier.height(36.dp))
 
-            // 1. "I've verified" Button
+            // 6-box OTP Input
+            OtpCodeBoxes(
+                otpValue = otpCode,
+                onValueChange = { otpCode = it },
+                enabled = !isSigningIn
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = "Can't find it? Check your Spam folder.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFF7A8C83),
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Verify Button (or loading indicator)
             Button(
-                onClick = { viewModel.checkEmailVerification() },
-                enabled = !isSigningIn,
+                onClick = { if (otpCode.length == 6) viewModel.verifyEmailCode(otpCode) },
+                enabled = otpCode.length == 6 && !isSigningIn,
                 shape = ButtonShape,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = LimeAccent,
@@ -151,7 +192,7 @@ fun EmailVerificationScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp)
-                    .testTag("ive_verified_button")
+                    .testTag("verify_code_button")
             ) {
                 if (isSigningIn) {
                     CircularProgressIndicator(
@@ -161,7 +202,7 @@ fun EmailVerificationScreen(
                     )
                 } else {
                     Text(
-                        text = "I've verified",
+                        text = "Verify Code",
                         fontFamily = PlusJakartaSansFamily,
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
@@ -172,9 +213,12 @@ fun EmailVerificationScreen(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // 2. "Resend email" Button with 60-second cooldown
+            // Resend Code Button with 60s countdown
             Button(
-                onClick = { viewModel.resendVerificationEmail() },
+                onClick = {
+                    otpCode = ""
+                    viewModel.resendVerificationEmail()
+                },
                 enabled = cooldownSeconds == 0 && !isSigningIn,
                 shape = ButtonShape,
                 colors = ButtonDefaults.buttonColors(
@@ -186,10 +230,10 @@ fun EmailVerificationScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp)
-                    .testTag("resend_verification_email_button")
+                    .testTag("resend_code_button")
             ) {
                 Text(
-                    text = if (cooldownSeconds > 0) "Resend email (${cooldownSeconds}s)" else "Resend email",
+                    text = if (cooldownSeconds > 0) "Resend code (${cooldownSeconds}s)" else "Resend code",
                     fontFamily = PlusJakartaSansFamily,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 15.sp
@@ -198,7 +242,7 @@ fun EmailVerificationScreen(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // 3. "Use a different account" Button (Sign out)
+            // Change email / Use a different account (signs out)
             OutlinedButton(
                 onClick = { viewModel.signOut() },
                 shape = ButtonShape,
@@ -212,7 +256,7 @@ fun EmailVerificationScreen(
                     .testTag("use_different_account_button")
             ) {
                 Text(
-                    text = "Use a different account",
+                    text = "Change email / Use a different account",
                     fontFamily = PlusJakartaSansFamily,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 15.sp,
@@ -226,6 +270,109 @@ fun EmailVerificationScreen(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
+                .padding(16.dp),
+            snackbar = { data ->
+                Snackbar(
+                    snackbarData = data,
+                    containerColor = CoralAlert,
+                    contentColor = Color.White,
+                    shape = ButtonShape
+                )
+            }
         )
+    }
+}
+
+@Composable
+fun OtpCodeBoxes(
+    otpValue: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
+) {
+    val focusRequesters = remember { List(6) { FocusRequester() } }
+    val focusManager = LocalFocusManager.current
+
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        for (i in 0 until 6) {
+            val char = otpValue.getOrNull(i)?.toString() ?: ""
+
+            OutlinedTextField(
+                value = char,
+                onValueChange = { value ->
+                    if (!enabled) return@OutlinedTextField
+                    if (value.length > 1) {
+                        // Paste support for full code
+                        val cleaned = value.filter { it.isDigit() }.take(6)
+                        if (cleaned.isNotEmpty()) {
+                            onValueChange(cleaned)
+                            if (cleaned.length == 6) {
+                                focusManager.clearFocus()
+                            } else {
+                                focusRequesters.getOrNull(cleaned.length)?.requestFocus()
+                            }
+                        }
+                    } else if (value.isNotEmpty()) {
+                        val digit = value.filter { it.isDigit() }
+                        if (digit.isNotEmpty()) {
+                            val sb = StringBuilder(otpValue)
+                            while (sb.length <= i) sb.append(' ')
+                            sb[i] = digit[0]
+                            val newCode = sb.toString().trim().take(6)
+                            onValueChange(newCode)
+                            if (i < 5) {
+                                focusRequesters[i + 1].requestFocus()
+                            } else {
+                                focusManager.clearFocus()
+                            }
+                        }
+                    } else {
+                        // Backspace
+                        val sb = StringBuilder(otpValue)
+                        if (i < sb.length) {
+                            sb.setCharAt(i, ' ')
+                        }
+                        val newCode = sb.toString().trim().take(6)
+                        onValueChange(newCode)
+                        if (i > 0) {
+                            focusRequesters[i - 1].requestFocus()
+                        }
+                    }
+                },
+                enabled = enabled,
+                singleLine = true,
+                textStyle = LocalTextStyle.current.copy(
+                    fontFamily = PlusJakartaSansFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 24.sp,
+                    textAlign = TextAlign.Center,
+                    color = Color.White
+                ),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Number,
+                    imeAction = if (i == 5) ImeAction.Done else ImeAction.Next
+                ),
+                keyboardActions = KeyboardActions(
+                    onDone = { focusManager.clearFocus() },
+                    onNext = { if (i < 5) focusRequesters[i + 1].requestFocus() }
+                ),
+                shape = RoundedCornerShape(14.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = LimeAccent,
+                    unfocusedBorderColor = Color(0xFF2A4234),
+                    focusedContainerColor = Color(0xFF14291D),
+                    unfocusedContainerColor = Color(0xFF14291D),
+                    cursorColor = LimeAccent
+                ),
+                modifier = Modifier
+                    .size(52.dp)
+                    .focusRequester(focusRequesters[i])
+                    .testTag("otp_box_$i")
+            )
+        }
     }
 }

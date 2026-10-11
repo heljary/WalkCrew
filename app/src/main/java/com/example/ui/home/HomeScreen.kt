@@ -22,7 +22,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -84,7 +88,7 @@ fun HomeScreen(
     val stats by viewModel.userStats.collectAsState()
     val healthState by viewModel.healthConnectState.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
-    val userName = userProfile?.displayName ?: "Alex"
+    val userName = userProfile?.displayName?.ifBlank { null } ?: "Walker"
     val avatarColorIndex = userProfile?.avatarColorIndex ?: 2
 
     val layoutInfo = rememberResponsiveLayoutInfo()
@@ -117,6 +121,9 @@ fun HomeScreen(
 
     val dailyGoal = userProfile?.dailyStepGoal ?: stats.goal
 
+    val formattedUserName = remember(userName) { formatDisplayName(userName) }
+    val navBarBottomPadding = 24.dp
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -129,13 +136,13 @@ fun HomeScreen(
                 .widthIn(max = if (isLandscapeMode) 960.dp else 640.dp)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = Spacing.screenHorizontal)
-                .padding(top = 16.dp, bottom = 100.dp) // Space for floating pill nav bar
+                .padding(top = 16.dp, bottom = navBarBottomPadding) // Comfortable padding above root scaffold nav bar
         ) {
             // Section 1: Top Row (Greeting & Avatar)
             StaggeredEntrance(index = 0) {
                 GreetingRow(
                     greeting = greeting,
-                    userName = userName,
+                    userName = formattedUserName,
                     avatarColorIndex = avatarColorIndex,
                     onRefresh = { viewModel.refreshSteps() },
                     onProfile = onNavigateToProfile
@@ -172,9 +179,7 @@ fun HomeScreen(
                     ) {
                         StepRingCard(
                             stats = stats,
-                            dailyGoal = dailyGoal,
-                            onAddSteps = { viewModel.addSimulatedSteps(1000L) },
-                            onResetSteps = { viewModel.resetAllProgress() }
+                            dailyGoal = dailyGoal
                         )
 
                         StreakCardSection(
@@ -206,9 +211,7 @@ fun HomeScreen(
                 StaggeredEntrance(index = 2) {
                     StepRingCard(
                         stats = stats,
-                        dailyGoal = dailyGoal,
-                        onAddSteps = { viewModel.addSimulatedSteps(1000L) },
-                        onResetSteps = { viewModel.resetAllProgress() }
+                        dailyGoal = dailyGoal
                     )
                 }
 
@@ -276,7 +279,7 @@ private fun GreetingRow(
             Text(
                 text = "Step forward today",
                 style = MaterialTheme.typography.bodySmall,
-                color = WalkCrewTheme.extendedColors.textSecondary
+                color = Color(0xFFB0B0B0)
             )
         }
 
@@ -290,14 +293,14 @@ private fun GreetingRow(
                 Icon(
                     imageVector = Icons.Rounded.Refresh,
                     contentDescription = "Refresh steps",
-                    tint = WalkCrewTheme.extendedColors.textSecondary
+                    tint = Color(0xFFB0B0B0)
                 )
             }
 
             Spacer(modifier = Modifier.width(4.dp))
 
             Avatar(
-                initials = userName.take(2),
+                initials = userName.take(2).uppercase(Locale.getDefault()),
                 colorIndex = avatarColorIndex,
                 size = 48.dp,
                 onClick = onProfile,
@@ -310,9 +313,7 @@ private fun GreetingRow(
 @Composable
 private fun StepRingCard(
     stats: UserStats,
-    dailyGoal: Long,
-    onAddSteps: () -> Unit,
-    onResetSteps: () -> Unit = {}
+    dailyGoal: Long
 ) {
     Surface(
         modifier = Modifier
@@ -326,7 +327,7 @@ private fun StepRingCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(20.dp),
+                .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             StepRing(
@@ -334,33 +335,6 @@ private fun StepRingCard(
                 goalSteps = dailyGoal,
                 modifier = Modifier.testTag("home_step_ring")
             )
-
-            Spacer(modifier = Modifier.height(16.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                SecondaryButton(
-                    text = "+1,000 steps",
-                    onClick = onAddSteps,
-                    leadingIcon = Icons.Rounded.Add,
-                    modifier = if (stats.steps > 0) Modifier.weight(1f).height(48.dp) else Modifier.fillMaxWidth().height(48.dp),
-                    testTag = "simulate_steps_btn"
-                )
-
-                if (stats.steps > 0) {
-                    SecondaryButton(
-                        text = "Reset to 0",
-                        onClick = onResetSteps,
-                        leadingIcon = Icons.Rounded.Refresh,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp),
-                        testTag = "reset_steps_home_btn"
-                    )
-                }
-            }
         }
     }
 }
@@ -472,7 +446,7 @@ private fun WeeklyChartSection(
                 Text(
                     text = "Past 7 days",
                     style = MaterialTheme.typography.labelSmall,
-                    color = WalkCrewTheme.extendedColors.textSecondary
+                    color = Color(0xFFB0B0B0)
                 )
             }
         )
@@ -593,5 +567,16 @@ private fun HomeScreenPreview() {
         Surface(color = MaterialTheme.colorScheme.background) {
             HomeScreen()
         }
+    }
+}
+
+/**
+ * Formats a dynamic user name into clean Title Case (e.g. "hamza" -> "Hamza", "hamza eljary" -> "Hamza Eljary").
+ */
+fun formatDisplayName(name: String): String {
+    if (name.isBlank()) return "Walker"
+    return name.trim().split(Regex("\\s+")).joinToString(" ") { word ->
+        word.lowercase(Locale.getDefault())
+            .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
     }
 }

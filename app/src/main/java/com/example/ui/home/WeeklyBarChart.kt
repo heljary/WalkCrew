@@ -48,9 +48,12 @@ fun WeeklyBarChart(
     modifier: Modifier = Modifier
 ) {
     val darkTheme = isSystemInDarkTheme()
-    val todayBarColor = if (darkTheme) LimeAccent else DeepForest
-    val otherBarColor = MaterialTheme.colorScheme.surfaceVariant
-    val goalLineColor = WalkCrewTheme.extendedColors.textSecondary.copy(alpha = 0.5f)
+    // Primary accent lime (#C6FF00) for days with recorded steps
+    val accentLime = Color(0xFFC6FF00)
+    // Subtle background track structure for empty/zero-step days (#1E281E)
+    val trackBgColor = if (darkTheme) Color(0xFF1E281E) else Color(0xFFE2E9E2)
+    // Dotted goal threshold line clearly visible across the chart columns
+    val goalLineColor = if (darkTheme) Color(0xFFB0B0B0).copy(alpha = 0.65f) else Color(0xFF5B6B62).copy(alpha = 0.65f)
     val dividerColor = WalkCrewTheme.extendedColors.divider
 
     // Animation progress from 0f to 1f
@@ -93,7 +96,7 @@ fun WeeklyBarChart(
                     Text(
                         text = "Weekly Total",
                         style = MaterialTheme.typography.labelSmall,
-                        color = WalkCrewTheme.extendedColors.textSecondary
+                        color = Color(0xFFB0B0B0)
                     )
                     val totalSteps = weeklyData.sumOf { it.steps }
                     Text(
@@ -104,11 +107,16 @@ fun WeeklyBarChart(
                     )
                 }
 
-                // Goal badge
+                // Goal badge with high contrast
                 Box(
                     modifier = Modifier
                         .background(
-                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            color = if (darkTheme) Color(0xFF1E281E) else MaterialTheme.colorScheme.surfaceVariant,
+                            shape = CardShape
+                        )
+                        .border(
+                            width = 1.dp,
+                            color = if (darkTheme) Color(0xFF2A3D2E) else Color.Transparent,
                             shape = CardShape
                         )
                         .padding(horizontal = 12.dp, vertical = 6.dp)
@@ -116,7 +124,7 @@ fun WeeklyBarChart(
                     Text(
                         text = "Goal: ${goalSteps / 1000}k / day",
                         style = MaterialTheme.typography.labelSmall,
-                        color = WalkCrewTheme.extendedColors.textSecondary,
+                        color = Color(0xFFB0B0B0),
                         fontWeight = FontWeight.SemiBold
                     )
                 }
@@ -134,16 +142,30 @@ fun WeeklyBarChart(
                     val canvasWidth = size.width
                     val canvasHeight = size.height
 
-                    val chartHeight = canvasHeight - 28.dp.toPx()
+                    val chartHeight = canvasHeight - 20.dp.toPx()
                     val barCount = if (weeklyData.isEmpty()) 7 else weeklyData.size
-                    val totalSpacing = 10.dp.toPx() * (barCount - 1)
-                    val calculatedBarWidth = ((canvasWidth - totalSpacing) / barCount).coerceAtLeast(6.dp.toPx())
-                    val barWidth = calculatedBarWidth.coerceAtMost(32.dp.toPx())
                     val slotWidth = canvasWidth / barCount
 
-                    // Draw dashed goal line
+                    // Daily bar thickness: 12.dp with RoundedCornerShape
+                    val barWidth = 12.dp.toPx().coerceAtMost(slotWidth * 0.45f)
+                    val cornerRadius = CornerRadius(barWidth / 2f, barWidth / 2f)
+
+                    // 1. Subtle background track structure for all days (empty/zero-step days retain this)
+                    weeklyData.forEachIndexed { index, _ ->
+                        val centerX = slotWidth * index + slotWidth / 2f
+                        val left = centerX - barWidth / 2f
+
+                        drawRoundRect(
+                            color = trackBgColor,
+                            topLeft = Offset(left, 0f),
+                            size = Size(barWidth, chartHeight),
+                            cornerRadius = cornerRadius
+                        )
+                    }
+
+                    // 2. Dotted goal threshold line clearly visible across the chart columns
                     val goalY = chartHeight - (goalSteps.toFloat() / maxSteps * chartHeight)
-                    val pathEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 12f), 0f)
+                    val pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
 
                     drawLine(
                         color = goalLineColor,
@@ -153,26 +175,31 @@ fun WeeklyBarChart(
                         pathEffect = pathEffect
                     )
 
-                    // Draw 7 rounded bars
+                    // 3. Any day with recorded steps fills upward with primary accent lime (#C6FF00)
                     weeklyData.forEachIndexed { index, data ->
-                        val centerX = slotWidth * index + slotWidth / 2f
-                        val barHeightFraction = (data.steps.toFloat() / maxSteps).coerceIn(0.04f, 1f)
-                        val animatedBarHeight = barHeightFraction * chartHeight * animProgress.value
-                        val barTop = chartHeight - animatedBarHeight
+                        if (data.steps > 0) {
+                            val centerX = slotWidth * index + slotWidth / 2f
+                            val left = centerX - barWidth / 2f
 
-                        val barColor = if (data.isToday) todayBarColor else otherBarColor
+                            val barHeightFraction = (data.steps.toFloat() / maxSteps).coerceIn(0f, 1f)
+                            val animatedBarHeight = (barHeightFraction * chartHeight * animProgress.value)
+                                .coerceAtLeast(barWidth)
 
-                        drawRoundRect(
-                            color = barColor,
-                            topLeft = Offset(centerX - barWidth / 2f, barTop),
-                            size = Size(barWidth, animatedBarHeight),
-                            cornerRadius = CornerRadius(barWidth / 2f, barWidth / 2f)
-                        )
+                            val barTop = chartHeight - animatedBarHeight
+                            drawRoundRect(
+                                color = accentLime,
+                                topLeft = Offset(left, barTop),
+                                size = Size(barWidth, animatedBarHeight),
+                                cornerRadius = cornerRadius
+                            )
+                        }
                     }
                 }
             }
 
-            // Day Initials Labels Row
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Day Initials Labels Row with high-contrast text
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -185,11 +212,11 @@ fun WeeklyBarChart(
                         Text(
                             text = day.dayInitial,
                             style = MaterialTheme.typography.labelSmall,
-                            fontWeight = if (day.isToday) FontWeight.Bold else FontWeight.Medium,
+                            fontWeight = if (day.isToday) FontWeight.ExtraBold else FontWeight.SemiBold,
                             color = if (day.isToday) {
-                                WalkCrewTheme.extendedColors.textPrimary
+                                Color(0xFFC6FF00)
                             } else {
-                                WalkCrewTheme.extendedColors.textSecondary
+                                Color(0xFF9E9E9E)
                             },
                             textAlign = TextAlign.Center
                         )

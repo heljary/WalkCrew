@@ -226,27 +226,16 @@ class RevenueCatManager private constructor(private val context: Context) {
 
                     override fun onError(error: PurchasesError, userCancelled: Boolean) {
                         _isLoading.value = false
-                        // If Play Billing is unavailable on device / emulator or credentials issue in sandbox, activate demo premium
-                        if (error.code == PurchasesErrorCode.PurchaseNotAllowedError ||
-                            error.code == PurchasesErrorCode.StoreProblemError ||
-                            error.code == PurchasesErrorCode.InvalidCredentialsError ||
-                            error.underlyingErrorMessage?.contains("BILLING_UNAVAILABLE", ignoreCase = true) == true
-                        ) {
-                            _isPremium.value = true
-                            _actionMessage.value = "Welcome to WalkCrew Premium! (Simulator Mode)"
-                            onSuccess()
-                        } else if (!userCancelled) {
-                            _actionMessage.value = error.message
+                        _actionMessage.value = error.message
+                        if (!userCancelled) {
                             onError(error.message)
                         }
                     }
                 }
             )
         } else {
-            // Local fallback simulation when running in sandbox/emulator without Play Billing account configured
             _isLoading.value = false
-            _isPremium.value = true
-            _actionMessage.value = "Welcome to WalkCrew Premium! (Simulator Mode)"
+            _actionMessage.value = "RevenueCat not configured or offline."
             onSuccess()
         }
     }
@@ -289,12 +278,6 @@ class RevenueCatManager private constructor(private val context: Context) {
         }
     }
 
-    /**
-     * Helper for demo/testing toggling of Premium in the emulator
-     */
-    fun toggleSimulatedPremium(value: Boolean) {
-        _isPremium.value = value
-    }
 
     fun clearActionMessage() {
         _actionMessage.value = null

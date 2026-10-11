@@ -3,8 +3,13 @@ package com.example.ui.navigation
 import android.app.Application
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -134,100 +139,110 @@ private fun MainAppContent(
         WalkCrewDestinations.PROFILE
     )
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        NavHost(
-            navController = navController,
-            startDestination = WalkCrewDestinations.HOME,
-            modifier = Modifier.fillMaxSize()
-        ) {
-            composable(WalkCrewDestinations.HOME) {
-                HomeScreen(
-                    viewModel = homeViewModel,
-                    onNavigateToCrews = {
-                        navController.navigate(WalkCrewDestinations.CREWS) {
-                            popUpTo(WalkCrewDestinations.HOME)
-                            launchSingleTop = true
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets.navigationBars,
+        bottomBar = {
+            // Floating Pill Navigation Bar (shown on top-level tabs)
+            if (isTopLevelDestination) {
+                FloatingPillNavBar(
+                    selectedTab = currentTab,
+                    onTabSelected = { tab ->
+                        val targetRoute = when (tab) {
+                            NavigationTab.HOME -> WalkCrewDestinations.HOME
+                            NavigationTab.CREWS -> WalkCrewDestinations.CREWS
+                            NavigationTab.PROFILE -> WalkCrewDestinations.PROFILE
                         }
-                    },
-                    onNavigateToProfile = {
-                        navController.navigate(WalkCrewDestinations.PROFILE) {
-                            popUpTo(WalkCrewDestinations.HOME)
-                            launchSingleTop = true
-                        }
-                    }
-                )
-            }
-
-            composable(WalkCrewDestinations.CREWS) {
-                CrewsScreen(
-                    viewModel = crewViewModel,
-                    onCrewClick = { crewId ->
-                        navController.navigate("crew_detail/$crewId")
-                    }
-                )
-            }
-
-            composable(
-                route = WalkCrewDestinations.CREW_DETAIL,
-                arguments = listOf(navArgument("crewId") { type = NavType.StringType })
-            ) { backStackEntry ->
-                val crewId = backStackEntry.arguments?.getString("crewId") ?: ""
-                val context = LocalContext.current
-                val detailViewModel: CrewDetailViewModel = viewModel(
-                    key = "crew_detail_$crewId",
-                    factory = object : ViewModelProvider.Factory {
-                        @Suppress("UNCHECKED_CAST")
-                        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                            return CrewDetailViewModel(context.applicationContext as Application, crewId) as T
+                        if (currentRoute != targetRoute) {
+                            navController.navigate(targetRoute) {
+                                popUpTo(WalkCrewDestinations.HOME) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
                         }
                     }
-                )
-                CrewDetailScreen(
-                    viewModel = detailViewModel,
-                    onBackClick = { navController.popBackStack() }
-                )
-            }
-
-            composable(WalkCrewDestinations.PROFILE) {
-                ProfileScreen(
-                    viewModel = homeViewModel,
-                    authViewModel = authViewModel,
-                    onSignOut = onSignOut,
-                    onNavigateToPaywall = {
-                        navController.navigate(WalkCrewDestinations.PAYWALL)
-                    }
-                )
-            }
-
-            composable(WalkCrewDestinations.PAYWALL) {
-                com.example.ui.paywall.PaywallScreen(
-                    onDismiss = { navController.popBackStack() }
                 )
             }
         }
-
-        // Floating Pill Navigation Bar (shown on top-level tabs)
-        if (isTopLevelDestination) {
-            FloatingPillNavBar(
-                selectedTab = currentTab,
-                onTabSelected = { tab ->
-                    val targetRoute = when (tab) {
-                        NavigationTab.HOME -> WalkCrewDestinations.HOME
-                        NavigationTab.CREWS -> WalkCrewDestinations.CREWS
-                        NavigationTab.PROFILE -> WalkCrewDestinations.PROFILE
-                    }
-                    if (currentRoute != targetRoute) {
-                        navController.navigate(targetRoute) {
-                            popUpTo(WalkCrewDestinations.HOME) {
-                                saveState = true
+    ) { innerPadding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = innerPadding.calculateBottomPadding())
+        ) {
+            NavHost(
+                navController = navController,
+                startDestination = WalkCrewDestinations.HOME,
+                modifier = Modifier.fillMaxSize()
+            ) {
+                composable(WalkCrewDestinations.HOME) {
+                    HomeScreen(
+                        viewModel = homeViewModel,
+                        onNavigateToCrews = {
+                            navController.navigate(WalkCrewDestinations.CREWS) {
+                                popUpTo(WalkCrewDestinations.HOME)
+                                launchSingleTop = true
                             }
-                            launchSingleTop = true
-                            restoreState = true
+                        },
+                        onNavigateToProfile = {
+                            navController.navigate(WalkCrewDestinations.PROFILE) {
+                                popUpTo(WalkCrewDestinations.HOME)
+                                launchSingleTop = true
+                            }
                         }
-                    }
-                },
-                modifier = Modifier.align(Alignment.BottomCenter)
-            )
+                    )
+                }
+
+                composable(WalkCrewDestinations.CREWS) {
+                    CrewsScreen(
+                        viewModel = crewViewModel,
+                        onCrewClick = { crewId ->
+                            navController.navigate("crew_detail/$crewId")
+                        }
+                    )
+                }
+
+                composable(
+                    route = WalkCrewDestinations.CREW_DETAIL,
+                    arguments = listOf(navArgument("crewId") { type = NavType.StringType })
+                ) { backStackEntry ->
+                    val crewId = backStackEntry.arguments?.getString("crewId") ?: ""
+                    val context = LocalContext.current
+                    val detailViewModel: CrewDetailViewModel = viewModel(
+                        key = "crew_detail_$crewId",
+                        factory = object : ViewModelProvider.Factory {
+                            @Suppress("UNCHECKED_CAST")
+                            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                                return CrewDetailViewModel(context.applicationContext as Application, crewId) as T
+                            }
+                        }
+                    )
+                    CrewDetailScreen(
+                        viewModel = detailViewModel,
+                        onBackClick = { navController.popBackStack() }
+                    )
+                }
+
+                composable(WalkCrewDestinations.PROFILE) {
+                    ProfileScreen(
+                        viewModel = homeViewModel,
+                        authViewModel = authViewModel,
+                        onSignOut = onSignOut,
+                        onNavigateToPaywall = {
+                            navController.navigate(WalkCrewDestinations.PAYWALL)
+                        }
+                    )
+                }
+
+                composable(WalkCrewDestinations.PAYWALL) {
+                    com.example.ui.paywall.PaywallScreen(
+                        onDismiss = { navController.popBackStack() }
+                    )
+                }
+            }
         }
     }
 }

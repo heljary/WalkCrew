@@ -19,11 +19,11 @@ object FirebaseInitializer {
         } catch (e: Exception) {
             Log.w(TAG, "Default initializeApp failed (${e.message}), initializing with explicit options")
             val options = FirebaseOptions.Builder()
-                .setApplicationId("1:918401212822:android:69e9e8fbcc75d9331c7db7")
-                .setProjectId("gen-lang-client-0840698630")
-                .setApiKey("AIzaSyAPiQQarRoTlA-9hqRpj9DtJSTUUhR5tug")
-                .setStorageBucket("gen-lang-client-0840698630.firebasestorage.app")
-                .setGcmSenderId("918401212822")
+                .setApplicationId("1:1070356437895:android:fc65797eb9c0f045ec5122")
+                .setProjectId("gen-lang-client-0778467524")
+                .setApiKey("AIzaSyAN3YF8LoFnhZKHIieo4wURR4sF8vK_4Pw")
+                .setStorageBucket("gen-lang-client-0778467524.firebasestorage.app")
+                .setGcmSenderId("1070356437895")
                 .build()
             FirebaseApp.initializeApp(appContext, options)
         }

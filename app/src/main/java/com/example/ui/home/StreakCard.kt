@@ -210,8 +210,8 @@ fun StreakCard(
                         Text(
                             text = day.dayInitial,
                             style = MaterialTheme.typography.labelSmall,
-                            color = if (isToday) WalkCrewTheme.extendedColors.textPrimary else WalkCrewTheme.extendedColors.textSecondary,
-                            fontWeight = if (isToday) FontWeight.Bold else FontWeight.Medium
+                            color = if (isToday) Color(0xFFC6FF00) else Color(0xFF9E9E9E),
+                            fontWeight = if (isToday) FontWeight.ExtraBold else FontWeight.Medium
                         )
 
                         Spacer(modifier = Modifier.height(6.dp))

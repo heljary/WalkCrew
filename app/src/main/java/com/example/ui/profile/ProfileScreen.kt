@@ -17,6 +17,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
+import com.example.ui.home.formatDisplayName
 import com.example.ui.util.DevicePreviews
 import com.example.ui.util.FontScalePreviews
 import com.example.ui.util.ThemePreviews
@@ -47,6 +51,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -83,17 +88,24 @@ fun ProfileScreen(
 ) {
     val context = LocalContext.current
     val userProfile by viewModel.userProfile.collectAsState()
-    val userName = userProfile?.displayName ?: "Alex"
+    val userName = userProfile?.displayName?.ifBlank { null } ?: "Walker"
     val avatarColorIndex = userProfile?.avatarColorIndex ?: 2
     val healthState by viewModel.healthConnectState.collectAsState()
     val revenueCatManager = remember { com.example.billing.RevenueCatManager.getInstance(context) }
     val isPremium by revenueCatManager.isPremium.collectAsState()
+
+    LaunchedEffect(Unit) {
+        revenueCatManager.refreshCustomerInfo()
+    }
 
     var showEditNameDialog by remember { mutableStateOf(false) }
     var showSignOutConfirmDialog by remember { mutableStateOf(false) }
     var showDeleteAccountDialog by remember { mutableStateOf(false) }
     var deleteAccountPassword by remember { mutableStateOf("") }
     var tempName by remember { mutableStateOf(userName) }
+
+    val formattedUserName = remember(userName) { formatDisplayName(userName) }
+    val navBarBottomPadding = 24.dp
 
     Box(
         modifier = modifier
@@ -107,7 +119,7 @@ fun ProfileScreen(
                 .widthIn(max = 640.dp)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = Spacing.screenHorizontal)
-                .padding(top = 16.dp, bottom = 100.dp),
+                .padding(top = 16.dp, bottom = navBarBottomPadding),
             verticalArrangement = Arrangement.spacedBy(Spacing.lg)
         ) {
         Text(
@@ -134,7 +146,7 @@ fun ProfileScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Avatar(
-                    initials = userName.take(2).ifBlank { "WC" },
+                    initials = formattedUserName.take(2).uppercase().ifBlank { "WC" },
                     colorIndex = avatarColorIndex,
                     size = 72.dp,
                     testTag = "profile_large_avatar"
@@ -147,7 +159,7 @@ fun ProfileScreen(
                     horizontalArrangement = Arrangement.Center
                 ) {
                     Text(
-                        text = userName,
+                        text = formattedUserName,
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = WalkCrewTheme.extendedColors.textPrimary
@@ -254,7 +266,7 @@ fun ProfileScreen(
                         Text(
                             text = "Used for your daily ring and streaks",
                             style = MaterialTheme.typography.bodySmall,
-                            color = WalkCrewTheme.extendedColors.textSecondary
+                            color = Color(0xFFB0B0B0)
                         )
                     }
 
@@ -550,74 +562,12 @@ fun ProfileScreen(
                     }
                 } else {
                     PrimaryButton(
-                        text = "Upgrade to Premium ($3.99/mo)",
+                        text = "Upgrade to Pro",
                         onClick = onNavigateToPaywall,
                         modifier = Modifier.fillMaxWidth(),
                         testTag = "upgrade_to_pro_button"
                     )
                 }
-            }
-        }
-
-        // Demo and Testing Tools Card
-        SectionHeader(title = "Testing Tools")
-
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .border(1.dp, WalkCrewTheme.extendedColors.divider, CardShape)
-                .testTag("testing_tools_card"),
-            shape = CardShape,
-            color = MaterialTheme.colorScheme.surface,
-            shadowElevation = 0.dp
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp)
-            ) {
-                Text(
-                    text = "Emulator / Demo Controls",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = WalkCrewTheme.extendedColors.textPrimary
-                )
-                Text(
-                    text = "Add steps or test RevenueCat entitlement state to test the spring progress ring and crew limits.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = WalkCrewTheme.extendedColors.textSecondary
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    PrimaryButton(
-                        text = "+2,500 Steps",
-                        onClick = { viewModel.addSimulatedSteps(2500L) },
-                        modifier = Modifier.weight(1f),
-                        testTag = "add_2500_steps_btn"
-                    )
-
-                    SecondaryButton(
-                        text = if (isPremium) "Simulate Free" else "Simulate Pro",
-                        onClick = { revenueCatManager.toggleSimulatedPremium(!isPremium) },
-                        modifier = Modifier.weight(1f),
-                        testTag = "toggle_simulated_premium_btn"
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                SecondaryButton(
-                    text = "Reset All Progress to 0",
-                    onClick = { viewModel.resetAllProgress() },
-                    leadingIcon = Icons.Rounded.Refresh,
-                    modifier = Modifier.fillMaxWidth(),
-                    testTag = "reset_progress_to_zero_btn"
-                )
             }
         }
 

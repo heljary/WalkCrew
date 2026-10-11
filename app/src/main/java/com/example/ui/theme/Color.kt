@@ -23,7 +23,8 @@ val DarkSurfaceVariant = Color(0xFF1B2B23)
 val DarkPrimary = Color(0xFFC8F23C)
 val DarkOnPrimary = Color(0xFF0E3B2C)
 val DarkTextPrimary = Color(0xFFF1F5EC)
-val DarkTextSecondary = Color(0xFF93A59A)
+val DarkTextSecondary = Color(0xFFB0B0B0) // Elevated contrast lighter gray
+val DarkTextTertiary = Color(0xFF9E9E9E)  // Subtle tertiary labels
 val DarkDivider = Color(0xFF22342B)
 
 // Ring Gradient Colors
@@ -58,6 +59,7 @@ data class WalkCrewExtendedColors(
     val highlight: Color,
     val textPrimary: Color,
     val textSecondary: Color,
+    val textTertiary: Color = DarkTextTertiary,
     val divider: Color,
     val rankGold: Color = RankGold,
     val rankSilver: Color = RankSilver,

@@ -42,7 +42,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     val userProfile: StateFlow<UserProfile?> = _userProfile.asStateFlow()
 
     val userName: StateFlow<String>
-        get() = MutableStateFlow(_userProfile.value?.displayName ?: "Alex").asStateFlow()
+        get() = MutableStateFlow(_userProfile.value?.displayName?.ifBlank { null } ?: "Walker").asStateFlow()
 
     init {
         loadUserProfile()
