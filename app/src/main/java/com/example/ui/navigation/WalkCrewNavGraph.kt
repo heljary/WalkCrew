@@ -24,7 +24,12 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.ui.auth.AuthUiState
 import com.example.ui.auth.AuthViewModel
+import com.example.ui.auth.EmailVerificationScreen
+import com.example.ui.auth.ForgotPasswordScreen
 import com.example.ui.auth.ProfileSetupScreen
+import com.example.ui.auth.SignInScreen
+import com.example.ui.auth.SignUpScreen
+import com.example.ui.auth.UnauthScreen
 import com.example.ui.auth.WelcomeSignInScreen
 import com.example.ui.components.FloatingPillNavBar
 import com.example.ui.components.NavigationTab
@@ -54,6 +59,7 @@ fun WalkCrewApp(
     crewViewModel: CrewViewModel = viewModel()
 ) {
     val authState by authViewModel.uiState.collectAsState()
+    val unauthScreen by authViewModel.unauthScreen.collectAsState()
 
     when (val state = authState) {
         is AuthUiState.Loading -> {
@@ -71,7 +77,19 @@ fun WalkCrewApp(
         }
 
         is AuthUiState.Unauthenticated -> {
-            WelcomeSignInScreen(viewModel = authViewModel)
+            when (unauthScreen) {
+                UnauthScreen.WELCOME -> WelcomeSignInScreen(viewModel = authViewModel)
+                UnauthScreen.SIGN_IN -> SignInScreen(viewModel = authViewModel)
+                UnauthScreen.SIGN_UP -> SignUpScreen(viewModel = authViewModel)
+                UnauthScreen.FORGOT_PASSWORD -> ForgotPasswordScreen(viewModel = authViewModel)
+            }
+        }
+
+        is AuthUiState.EmailVerificationRequired -> {
+            EmailVerificationScreen(
+                user = state.user,
+                viewModel = authViewModel
+            )
         }
 
         is AuthUiState.NeedsProfileSetup -> {
@@ -86,8 +104,8 @@ fun WalkCrewApp(
                 navController = navController,
                 homeViewModel = homeViewModel,
                 crewViewModel = crewViewModel,
-                onSignOut = { authViewModel.signOut() },
-                onDeleteAccount = { authViewModel.deleteAccount() }
+                authViewModel = authViewModel,
+                onSignOut = { authViewModel.signOut() }
             )
         }
     }
@@ -98,8 +116,8 @@ private fun MainAppContent(
     navController: NavHostController,
     homeViewModel: HomeViewModel,
     crewViewModel: CrewViewModel,
-    onSignOut: () -> Unit,
-    onDeleteAccount: () -> Unit
+    authViewModel: AuthViewModel,
+    onSignOut: () -> Unit
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: WalkCrewDestinations.HOME
@@ -173,8 +191,8 @@ private fun MainAppContent(
             composable(WalkCrewDestinations.PROFILE) {
                 ProfileScreen(
                     viewModel = homeViewModel,
+                    authViewModel = authViewModel,
                     onSignOut = onSignOut,
-                    onDeleteAccount = onDeleteAccount,
                     onNavigateToPaywall = {
                         navController.navigate(WalkCrewDestinations.PAYWALL)
                     }

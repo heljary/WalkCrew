@@ -127,6 +127,16 @@ class UserRepository(private val context: Context) {
         }
     }
 
+    suspend fun deleteUserAccount(userId: String): Result<Unit> {
+        return try {
+            db.collection("users").document(userId).delete().await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error deleting user profile: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
     companion object {
         private const val TAG = "UserRepository"
 

@@ -77,9 +77,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         syncToFirestore()
     }
 
-    fun resetDemoSteps() {
-        stepRepository.resetDemoSteps()
+    fun resetAllProgress() {
+        stepRepository.resetAllProgress()
         syncToFirestore()
+    }
+
+    fun resetDemoSteps() {
+        resetAllProgress()
     }
 
     private fun syncToFirestore() {

@@ -24,11 +24,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.DirectionsWalk
+import androidx.compose.material.icons.automirrored.rounded.ExitToApp
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.DirectionsWalk
 import androidx.compose.material.icons.rounded.Edit
-import androidx.compose.material.icons.rounded.ExitToApp
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.NotificationsActive
@@ -76,6 +76,7 @@ import com.example.ui.theme.WalkCrewTheme
 fun ProfileScreen(
     viewModel: HomeViewModel,
     modifier: Modifier = Modifier,
+    authViewModel: com.example.ui.auth.AuthViewModel? = null,
     onSignOut: () -> Unit = {},
     onDeleteAccount: () -> Unit = {},
     onNavigateToPaywall: () -> Unit = {}
@@ -89,7 +90,9 @@ fun ProfileScreen(
     val isPremium by revenueCatManager.isPremium.collectAsState()
 
     var showEditNameDialog by remember { mutableStateOf(false) }
+    var showSignOutConfirmDialog by remember { mutableStateOf(false) }
     var showDeleteAccountDialog by remember { mutableStateOf(false) }
+    var deleteAccountPassword by remember { mutableStateOf("") }
     var tempName by remember { mutableStateOf(userName) }
 
     Box(
@@ -399,7 +402,7 @@ fun ProfileScreen(
                     Icon(
                         imageVector = when (healthState) {
                             is HealthConnectState.AvailableAndGranted -> Icons.Rounded.CheckCircle
-                            else -> Icons.Rounded.DirectionsWalk
+                            else -> Icons.AutoMirrored.Rounded.DirectionsWalk
                         },
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
@@ -605,14 +608,24 @@ fun ProfileScreen(
                         testTag = "toggle_simulated_premium_btn"
                     )
                 }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                SecondaryButton(
+                    text = "Reset All Progress to 0",
+                    onClick = { viewModel.resetAllProgress() },
+                    leadingIcon = Icons.Rounded.Refresh,
+                    modifier = Modifier.fillMaxWidth(),
+                    testTag = "reset_progress_to_zero_btn"
+                )
             }
         }
 
         // Account Sign Out Section
         SecondaryButton(
             text = "Sign Out",
-            onClick = onSignOut,
-            leadingIcon = Icons.Rounded.ExitToApp,
+            onClick = { showSignOutConfirmDialog = true },
+            leadingIcon = Icons.AutoMirrored.Rounded.ExitToApp,
             modifier = Modifier.fillMaxWidth(),
             testTag = "sign_out_button"
         )
@@ -621,7 +634,10 @@ fun ProfileScreen(
 
         // Account Deletion Section (Required for Google Play Store Policy)
         TextButton(
-            onClick = { showDeleteAccountDialog = true },
+            onClick = {
+                deleteAccountPassword = ""
+                showDeleteAccountDialog = true
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .testTag("delete_account_button")
@@ -634,6 +650,42 @@ fun ProfileScreen(
         }
     }
 }
+
+    if (showSignOutConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showSignOutConfirmDialog = false },
+            title = {
+                Text(
+                    text = "Sign Out",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = WalkCrewTheme.extendedColors.textPrimary
+                )
+            },
+            text = {
+                Text(
+                    text = "Are you sure you want to sign out of WalkCrew? You can sign back in anytime to access your crew and step progress.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = WalkCrewTheme.extendedColors.textSecondary
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showSignOutConfirmDialog = false
+                    onSignOut()
+                }) {
+                    Text("Sign Out", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSignOutConfirmDialog = false }) {
+                    Text("Cancel", color = WalkCrewTheme.extendedColors.textSecondary)
+                }
+            },
+            shape = CardShape,
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    }
 
     if (showEditNameDialog) {
         AlertDialog(
@@ -675,29 +727,84 @@ fun ProfileScreen(
     }
 
     if (showDeleteAccountDialog) {
+        val provider = authViewModel?.getCurrentUserProvider() ?: "password"
         AlertDialog(
             onDismissRequest = { showDeleteAccountDialog = false },
             title = {
                 Text(
-                    text = "Delete Account?",
+                    text = "Delete Account & Data?",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.error
                 )
             },
             text = {
-                Text(
-                    text = "Are you sure you want to permanently delete your WalkCrew account? All your step history, crew memberships, and profile data will be permanently removed. This action cannot be undone.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = WalkCrewTheme.extendedColors.textPrimary
-                )
+                Column {
+                    Text(
+                        text = "Are you sure you want to permanently delete your WalkCrew account? All your step history, crew memberships, and profile data will be permanently removed.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = WalkCrewTheme.extendedColors.textPrimary
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Security verification is required before deletion:",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = WalkCrewTheme.extendedColors.textSecondary
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    if (provider == "password") {
+                        OutlinedTextField(
+                            value = deleteAccountPassword,
+                            onValueChange = { deleteAccountPassword = it },
+                            label = { Text("Enter your password") },
+                            singleLine = true,
+                            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    } else if (provider == "google.com") {
+                        Text(
+                            text = "Please tap below to verify your Google identity.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    } else if (provider == "facebook.com") {
+                        Text(
+                            text = "Please tap below to verify your Facebook identity.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
             },
             confirmButton = {
-                TextButton(onClick = {
-                    showDeleteAccountDialog = false
-                    onDeleteAccount()
-                }) {
-                    Text("Delete Permanently", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                TextButton(
+                    onClick = {
+                        val currentContext = context
+                        showDeleteAccountDialog = false
+                        if (authViewModel != null) {
+                            when (provider) {
+                                "password" -> authViewModel.reauthenticateAndDeleteWithPassword(deleteAccountPassword)
+                                "google.com" -> {
+                                    if (currentContext is android.app.Activity) {
+                                        authViewModel.reauthenticateAndDeleteWithGoogle(currentContext)
+                                    }
+                                }
+                                "facebook.com" -> {
+                                    if (currentContext is android.app.Activity) {
+                                        authViewModel.reauthenticateAndDeleteWithFacebook(currentContext)
+                                    }
+                                }
+                                else -> onDeleteAccount()
+                            }
+                        } else {
+                            onDeleteAccount()
+                        }
+                    },
+                    enabled = provider != "password" || deleteAccountPassword.isNotBlank()
+                ) {
+                    Text("Verify & Delete Permanently", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {

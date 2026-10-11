@@ -173,7 +173,8 @@ fun HomeScreen(
                         StepRingCard(
                             stats = stats,
                             dailyGoal = dailyGoal,
-                            onAddSteps = { viewModel.addSimulatedSteps(1000L) }
+                            onAddSteps = { viewModel.addSimulatedSteps(1000L) },
+                            onResetSteps = { viewModel.resetAllProgress() }
                         )
 
                         StreakCardSection(
@@ -206,7 +207,8 @@ fun HomeScreen(
                     StepRingCard(
                         stats = stats,
                         dailyGoal = dailyGoal,
-                        onAddSteps = { viewModel.addSimulatedSteps(1000L) }
+                        onAddSteps = { viewModel.addSimulatedSteps(1000L) },
+                        onResetSteps = { viewModel.resetAllProgress() }
                     )
                 }
 
@@ -309,7 +311,8 @@ private fun GreetingRow(
 private fun StepRingCard(
     stats: UserStats,
     dailyGoal: Long,
-    onAddSteps: () -> Unit
+    onAddSteps: () -> Unit,
+    onResetSteps: () -> Unit = {}
 ) {
     Surface(
         modifier = Modifier
@@ -335,18 +338,28 @@ private fun StepRingCard(
             Spacer(modifier = Modifier.height(16.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 SecondaryButton(
                     text = "+1,000 steps",
                     onClick = onAddSteps,
                     leadingIcon = Icons.Rounded.Add,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp),
+                    modifier = if (stats.steps > 0) Modifier.weight(1f).height(48.dp) else Modifier.fillMaxWidth().height(48.dp),
                     testTag = "simulate_steps_btn"
                 )
+
+                if (stats.steps > 0) {
+                    SecondaryButton(
+                        text = "Reset to 0",
+                        onClick = onResetSteps,
+                        leadingIcon = Icons.Rounded.Refresh,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
+                        testTag = "reset_steps_home_btn"
+                    )
+                }
             }
         }
     }

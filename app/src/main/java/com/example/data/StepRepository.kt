@@ -87,9 +87,8 @@ class StepRepository(
                 isSimulated = false
             )
         } else {
-            // Keep active sample stats but flag as connected to Health Connect
-            val samples = createInitialSampleStats()
-            _userStats.value = samples.copy(isSimulated = true)
+            // Keep clean 0 steps baseline
+            _userStats.value = createInitialSampleStats()
         }
     }
 
@@ -106,12 +105,17 @@ class StepRepository(
         _userStats.value = UserStepStats.fromSteps(
             steps = newSteps,
             weeklyHistory = updatedHistory,
+            goal = current.goal,
             isSimulated = true
         )
     }
 
-    fun resetDemoSteps() {
+    fun resetAllProgress() {
         _userStats.value = createInitialSampleStats()
+    }
+
+    fun resetDemoSteps() {
+        resetAllProgress()
     }
 
     companion object {
@@ -126,12 +130,10 @@ class StepRepository(
 
         private fun createInitialSampleStats(): UserStepStats {
             val today = LocalDate.now()
-            val sampleDailyValues = listOf(6840L, 8210L, 7450L, 9120L, 6300L, 10450L, 5680L)
             val history = mutableListOf<DailyStepData>()
 
             for (i in 6 downTo 0) {
                 val date = today.minusDays(i.toLong())
-                val steps = sampleDailyValues[6 - i]
                 val dayName = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault())
                 val dayInitial = dayName.take(1).uppercase(Locale.getDefault())
                 history.add(
@@ -139,7 +141,7 @@ class StepRepository(
                         date = date,
                         dayInitial = dayInitial,
                         dayName = dayName,
-                        steps = steps,
+                        steps = 0L,
                         isToday = (i == 0),
                         goal = 8000L
                     )
@@ -147,10 +149,10 @@ class StepRepository(
             }
 
             return UserStepStats.fromSteps(
-                steps = 5680L,
+                steps = 0L,
                 weeklyHistory = history,
                 goal = 8000L,
-                isSimulated = true
+                isSimulated = false
             )
         }
     }

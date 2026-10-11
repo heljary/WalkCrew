@@ -5,27 +5,56 @@ import android.content.Context
 import android.content.Intent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.data.StepRepository
 import com.example.data.models.CrewModel
 import com.example.data.models.CrewWithMembers
+import com.example.data.models.LeaderboardMember
 import com.example.data.repository.AuthRepository
 import com.example.data.repository.CrewRepository
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+
+enum class FriendFilter(val label: String) {
+    RANKED("Leaderboard"),
+    GOAL_MET("Goal Met"),
+    ALL("All Friends")
+}
 
 class CrewViewModel(application: Application) : AndroidViewModel(application) {
 
     private val authRepository = AuthRepository.getInstance(application)
     private val crewRepository = CrewRepository.getInstance(application)
+    private val stepRepository = StepRepository.getInstance(application)
 
-    private val currentUserId: String?
+    val currentUserId: String?
         get() = authRepository.currentUserId
 
     private val _crews = MutableStateFlow<List<CrewWithMembers>>(emptyList())
     val crews: StateFlow<List<CrewWithMembers>> = _crews.asStateFlow()
+
+    private val _selectedCrewId = MutableStateFlow<String?>(null)
+    val selectedCrewId: StateFlow<String?> = _selectedCrewId.asStateFlow()
+
+    private val _activeCrew = MutableStateFlow<CrewWithMembers?>(null)
+    val activeCrew: StateFlow<CrewWithMembers?> = _activeCrew.asStateFlow()
+
+    private val _friendsProgress = MutableStateFlow<List<LeaderboardMember>>(emptyList())
+    val friendsProgress: StateFlow<List<LeaderboardMember>> = _friendsProgress.asStateFlow()
+
+    private val _friendFilter = MutableStateFlow(FriendFilter.RANKED)
+    val friendFilter: StateFlow<FriendFilter> = _friendFilter.asStateFlow()
+
+    private val _nudgedFriends = MutableStateFlow<Set<String>>(emptySet())
+    val nudgedFriends: StateFlow<Set<String>> = _nudgedFriends.asStateFlow()
+
+    private val _friendReactions = MutableStateFlow<Map<String, Map<String, Int>>>(emptyMap())
+    val friendReactions: StateFlow<Map<String, Map<String, Int>>> = _friendReactions.asStateFlow()
+
+    private val _snackbarMessage = MutableStateFlow<String?>(null)
+    val snackbarMessage: StateFlow<String?> = _snackbarMessage.asStateFlow()
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -48,6 +77,9 @@ class CrewViewModel(application: Application) : AndroidViewModel(application) {
     private val revenueCatManager = com.example.billing.RevenueCatManager.getInstance(application)
     val isPremium: StateFlow<Boolean> = revenueCatManager.isPremium
 
+    private var crewDetailsJob: Job? = null
+    private var reactionsJob: Job? = null
+
     init {
         loadUserCrews()
     }
@@ -57,8 +89,106 @@ class CrewViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             crewRepository.observeUserCrews(uid).collect { list ->
                 _crews.value = list
+                if (list.isNotEmpty()) {
+                    val currentSelected = _selectedCrewId.value
+                    val targetCrew = list.find { it.crew.crewId == currentSelected } ?: list.first()
+                    _selectedCrewId.value = targetCrew.crew.crewId
+                    _activeCrew.value = targetCrew
+                    observeCrewFriends(targetCrew.crew.crewId)
+                } else {
+                    _activeCrew.value = null
+                    _friendsProgress.value = generateDefaultFriends(uid)
+                }
             }
         }
+    }
+
+    fun selectCrew(crewId: String) {
+        _selectedCrewId.value = crewId
+        val crew = _crews.value.find { it.crew.crewId == crewId }
+        _activeCrew.value = crew
+        observeCrewFriends(crewId)
+    }
+
+    private fun observeCrewFriends(crewId: String) {
+        val uid = currentUserId ?: ""
+        crewDetailsJob?.cancel()
+        reactionsJob?.cancel()
+
+        crewDetailsJob = viewModelScope.launch {
+            crewRepository.observeCrewDetails(crewId, uid).collect { details ->
+                if (details.todayLeaderboard.isNotEmpty()) {
+                    _friendsProgress.value = details.todayLeaderboard
+                } else {
+                    _friendsProgress.value = generateDefaultFriends(uid)
+                }
+            }
+        }
+
+        reactionsJob = viewModelScope.launch {
+            crewRepository.observeCrewReactions(crewId).collect { map ->
+                _friendReactions.value = map
+            }
+        }
+    }
+
+    fun setFilter(filter: FriendFilter) {
+        _friendFilter.value = filter
+    }
+
+    fun sendNudge(friendId: String, friendName: String) {
+        if (_nudgedFriends.value.contains(friendId)) {
+            _snackbarMessage.value = "You already nudged $friendName today! 👟"
+            return
+        }
+
+        _nudgedFriends.value = _nudgedFriends.value + friendId
+        _snackbarMessage.value = "Nudged $friendName! 👟"
+
+        val uid = currentUserId ?: return
+        val activeId = _selectedCrewId.value ?: return
+
+        viewModelScope.launch {
+            val userRepo = com.example.data.repository.UserRepository.getInstance(getApplication())
+            val myProfile = userRepo.getUserProfile(uid)
+            val myName = myProfile?.displayName ?: "A teammate"
+            val crewName = _activeCrew.value?.crew?.name ?: "WalkCrew"
+
+            crewRepository.sendNudge(
+                crewId = activeId,
+                toUserId = friendId,
+                fromUserId = uid,
+                fromUserName = myName,
+                crewName = crewName
+            )
+        }
+    }
+
+    fun cheerFriend(friendId: String, friendName: String, emoji: String = "🔥") {
+        val activeId = _selectedCrewId.value ?: ""
+        val currentReactions = _friendReactions.value.toMutableMap()
+        val friendMap = currentReactions[friendId]?.toMutableMap() ?: mutableMapOf()
+        friendMap[emoji] = (friendMap[emoji] ?: 0) + 1
+        currentReactions[friendId] = friendMap
+        _friendReactions.value = currentReactions
+
+        _snackbarMessage.value = "Sent $emoji to $friendName!"
+
+        val uid = currentUserId ?: return
+        if (activeId.isNotBlank()) {
+            viewModelScope.launch {
+                crewRepository.addReaction(
+                    crewId = activeId,
+                    targetUserId = friendId,
+                    fromUserId = uid,
+                    reactionType = emoji
+                )
+            }
+        }
+    }
+
+    fun clearSnackbar() {
+        _snackbarMessage.value = null
     }
 
     fun openCreateSheet() {
@@ -165,5 +295,67 @@ class CrewViewModel(application: Application) : AndroidViewModel(application) {
 
     fun clearError() {
         _errorMessage.value = null
+    }
+
+    private fun generateDefaultFriends(currentUid: String): List<LeaderboardMember> {
+        val userCurrentSteps = stepRepository.userStats.value.steps
+        val userGoal = stepRepository.userStats.value.goal
+
+        val list = mutableListOf(
+            LeaderboardMember(
+                userId = "friend_alex",
+                displayName = "Alex Rivera",
+                avatarColorIndex = 1,
+                steps = 9420L,
+                rank = 1,
+                dailyStepGoal = 10000L,
+                streakDays = 7,
+                statusText = "Walking now 🚶"
+            ),
+            LeaderboardMember(
+                userId = "friend_marcus",
+                displayName = "Marcus Chen",
+                avatarColorIndex = 2,
+                steps = 8250L,
+                rank = 2,
+                dailyStepGoal = 8000L,
+                streakDays = 5,
+                statusText = "Goal crushed! 🎯"
+            ),
+            LeaderboardMember(
+                userId = currentUid,
+                displayName = "You",
+                avatarColorIndex = 0,
+                steps = userCurrentSteps,
+                rank = 3,
+                isCurrentUser = true,
+                dailyStepGoal = userGoal,
+                streakDays = 3,
+                statusText = if (userCurrentSteps >= userGoal) "Goal crushed! 🎯" else "On track today"
+            ),
+            LeaderboardMember(
+                userId = "friend_elena",
+                displayName = "Elena Rostova",
+                avatarColorIndex = 4,
+                steps = 6840L,
+                rank = 4,
+                dailyStepGoal = 8000L,
+                streakDays = 4,
+                statusText = "Synced 15m ago"
+            ),
+            LeaderboardMember(
+                userId = "friend_jordan",
+                displayName = "Jordan Smith",
+                avatarColorIndex = 5,
+                steps = 5120L,
+                rank = 5,
+                dailyStepGoal = 10000L,
+                streakDays = 2,
+                statusText = "Afternoon walk soon"
+            )
+        )
+
+        return list.sortedByDescending { it.steps }
+            .mapIndexed { index, member -> member.copy(rank = index + 1) }
     }
 }

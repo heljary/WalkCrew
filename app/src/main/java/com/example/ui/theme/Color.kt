@@ -36,6 +36,8 @@ val RingGradientLightEnd = Color(0xFF2E7D5B)
 val RankGold = Color(0xFFF5C542)
 val RankSilver = Color(0xFFB8C2CC)
 val RankBronze = Color(0xFFD9915B)
+val CoralAlert = Color(0xFFFF6B4A)
+val GoldStar = Color(0xFFF5C542)
 
 // Avatar Preset Colors (8 options)
 val AvatarColors = listOf(

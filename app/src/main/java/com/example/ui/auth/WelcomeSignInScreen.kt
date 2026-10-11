@@ -3,6 +3,7 @@ package com.example.ui.auth
 import android.app.Activity
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,10 +21,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import com.example.ui.util.DevicePreviews
-import com.example.ui.util.FontScalePreviews
-import com.example.ui.util.ThemePreviews
-import com.example.ui.theme.WalkCrewTheme
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -32,6 +30,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -49,11 +48,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.R
 import com.example.ui.theme.ButtonShape
+import com.example.ui.theme.CardShape
 import com.example.ui.theme.DeepForest
 import com.example.ui.theme.LimeAccent
 import com.example.ui.theme.PlusJakartaSansFamily
 import com.example.ui.theme.Spacing
+
+private val FacebookBlue = Color(0xFF1877F2)
+private val DarkButtonText = Color(0xFF181D19)
 
 @Composable
 fun WelcomeSignInScreen(
@@ -63,6 +67,7 @@ fun WelcomeSignInScreen(
     val context = LocalContext.current
     val isSigningIn by viewModel.isSigningIn.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
+    val collisionDialog by viewModel.collisionDialog.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(errorMessage) {
@@ -75,17 +80,16 @@ fun WelcomeSignInScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(DeepForest) // Full-screen forest green background
-            .testTag("welcome_sign_in_screen")
+            .background(DeepForest)
+            .testTag("welcome_screen")
     ) {
         // Decorative background: Large faint circle outline pattern (Canvas, 6% opacity)
         Canvas(modifier = Modifier.fillMaxSize()) {
             val strokeColor = Color.White.copy(alpha = 0.06f)
             val strokeWidth = 2.dp.toPx()
 
-            // Concentric offset decorative circle outlines
-            val centerTop = Offset(size.width * 0.5f, size.height * 0.25f)
-            val centerBottom = Offset(size.width * 0.8f, size.height * 0.75f)
+            val centerTop = Offset(size.width * 0.5f, size.height * 0.22f)
+            val centerBottom = Offset(size.width * 0.85f, size.height * 0.8f)
 
             drawCircle(
                 color = strokeColor,
@@ -95,23 +99,22 @@ fun WelcomeSignInScreen(
             )
             drawCircle(
                 color = strokeColor,
-                radius = size.width * 0.6f,
+                radius = size.width * 0.62f,
                 center = centerTop,
                 style = Stroke(width = strokeWidth)
             )
             drawCircle(
                 color = strokeColor,
-                radius = size.width * 0.85f,
+                radius = size.width * 0.9f,
                 center = centerTop,
                 style = Stroke(width = strokeWidth)
             )
             drawCircle(
                 color = strokeColor,
-                radius = size.width * 1.1f,
+                radius = size.width * 1.15f,
                 center = centerTop,
                 style = Stroke(width = strokeWidth)
             )
-
             drawCircle(
                 color = strokeColor,
                 radius = size.width * 0.5f,
@@ -120,7 +123,7 @@ fun WelcomeSignInScreen(
             )
         }
 
-        // Content - Centered, scrollable, max-width constrained (Rules 10 & 12)
+        // Content - Centered, scrollable, max-width constrained
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -131,13 +134,13 @@ fun WelcomeSignInScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .widthIn(max = 640.dp)
+                    .widthIn(max = 520.dp)
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = Spacing.screenHorizontal, vertical = 32.dp),
+                    .padding(horizontal = Spacing.screenHorizontal, vertical = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
                 // Center Branding & Wordmark
                 Column(
@@ -148,14 +151,14 @@ fun WelcomeSignInScreen(
                         text = "WalkCrew",
                         fontFamily = PlusJakartaSansFamily,
                         fontWeight = FontWeight.ExtraBold,
-                        fontSize = 40.sp,
-                        lineHeight = 46.sp,
+                        fontSize = 44.sp,
+                        lineHeight = 50.sp,
                         color = LimeAccent,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.testTag("walkcrew_wordmark")
                     )
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
                         text = "Walk together. Win together.",
@@ -163,30 +166,131 @@ fun WelcomeSignInScreen(
                         fontWeight = FontWeight.Medium,
                         fontSize = 18.sp,
                         lineHeight = 24.sp,
-                        color = Color(0xFFBAC7BF), // textSecondary-light on dark forest
+                        color = Color(0xFFBAC7BF),
                         textAlign = TextAlign.Center,
                         modifier = Modifier.testTag("walkcrew_tagline")
                     )
                 }
 
-                Spacer(modifier = Modifier.height(48.dp))
+                Spacer(modifier = Modifier.height(56.dp))
 
-                // Bottom Action Section
+                // Three Stacked Pill Buttons
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 16.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Big pill button "Continue with Google" (lime background)
+                    // 1. "Continue with Google" (White surface, dark text, vector Google G)
                     Button(
                         onClick = {
-                            if (context is Activity) {
+                            if (!isSigningIn && context is Activity) {
                                 viewModel.signInWithGoogle(context)
                             }
                         },
                         enabled = !isSigningIn,
-                        shape = ButtonShape, // Fully rounded pill
+                        shape = ButtonShape,
+                        elevation = null,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.White,
+                            contentColor = DarkButtonText,
+                            disabledContainerColor = Color.White.copy(alpha = 0.6f),
+                            disabledContentColor = DarkButtonText.copy(alpha = 0.6f)
+                        ),
+                        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .testTag("continue_with_google_button")
+                    ) {
+                        if (isSigningIn) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = DarkButtonText,
+                                strokeWidth = 2.5.dp
+                            )
+                        } else {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_google_logo),
+                                    contentDescription = "Google Logo",
+                                    tint = Color.Unspecified,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = "Continue with Google",
+                                    fontFamily = PlusJakartaSansFamily,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp,
+                                    color = DarkButtonText
+                                )
+                            }
+                        }
+                    }
+
+                    // 2. "Continue with Facebook" (Facebook blue #1877F2, white text)
+                    Button(
+                        onClick = {
+                            if (!isSigningIn && context is Activity) {
+                                viewModel.signInWithFacebook(context)
+                            }
+                        },
+                        enabled = !isSigningIn,
+                        shape = ButtonShape,
+                        elevation = null,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = FacebookBlue,
+                            contentColor = Color.White,
+                            disabledContainerColor = FacebookBlue.copy(alpha = 0.6f),
+                            disabledContentColor = Color.White.copy(alpha = 0.6f)
+                        ),
+                        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .testTag("continue_with_facebook_button")
+                    ) {
+                        if (isSigningIn) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = Color.White,
+                                strokeWidth = 2.5.dp
+                            )
+                        } else {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_facebook_logo),
+                                    contentDescription = "Facebook Logo",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = "Continue with Facebook",
+                                    fontFamily = PlusJakartaSansFamily,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp,
+                                    color = Color.White
+                                )
+                            }
+                        }
+                    }
+
+                    // 3. "Continue with email" (Lime button)
+                    Button(
+                        onClick = {
+                            if (!isSigningIn) {
+                                viewModel.navigateToUnauthScreen(UnauthScreen.SIGN_UP)
+                            }
+                        },
+                        enabled = !isSigningIn,
+                        shape = ButtonShape,
                         elevation = null,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = LimeAccent,
@@ -198,81 +302,94 @@ fun WelcomeSignInScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(56.dp)
-                            .testTag("continue_with_google_button")
+                            .testTag("continue_with_email_button")
                     ) {
-                        if (isSigningIn) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                color = DeepForest,
-                                strokeWidth = 2.5.dp
-                            )
-                        } else {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
-                            ) {
-                                Text(
-                                    text = "Continue with Google",
-                                    fontFamily = PlusJakartaSansFamily,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 16.sp,
-                                    color = DeepForest
-                                )
-                            }
-                        }
+                        Text(
+                            text = "Continue with email",
+                            fontFamily = PlusJakartaSansFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            color = DeepForest
+                        )
                     }
+                }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(28.dp))
 
+                // Small text "Already have an account? Sign in"
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                ) {
                     Text(
-                        text = "Sign in to join group step challenges and sync with your crew.",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFF8A9C91),
-                        textAlign = TextAlign.Center
+                        text = "Already have an account? ",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color(0xFFBAC7BF)
+                    )
+                    Text(
+                        text = "Sign in",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = LimeAccent,
+                        modifier = Modifier
+                            .clickable {
+                                viewModel.navigateToUnauthScreen(UnauthScreen.SIGN_IN)
+                            }
+                            .testTag("welcome_to_sign_in_link")
                     )
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
             }
+        }
+
+        // Account Linking Collision Dialog
+        collisionDialog?.let { dialog ->
+            AlertDialog(
+                onDismissRequest = { viewModel.dismissCollisionDialog() },
+                title = {
+                    Text(
+                        text = "Link Your Account",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                },
+                text = {
+                    Text(
+                        text = "This email (${dialog.email}) is already registered with ${dialog.existingMethod}. Please sign in with ${dialog.existingMethod} to link your accounts together.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color(0xFFBAC7BF)
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            viewModel.dismissCollisionDialog()
+                            viewModel.navigateToUnauthScreen(UnauthScreen.SIGN_IN)
+                        },
+                        shape = ButtonShape,
+                        colors = ButtonDefaults.buttonColors(containerColor = LimeAccent, contentColor = DeepForest)
+                    ) {
+                        Text("Sign In to Link", fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { viewModel.dismissCollisionDialog() }) {
+                        Text("Cancel", color = Color(0xFFBAC7BF))
+                    }
+                },
+                containerColor = Color(0xFF14291D),
+                shape = CardShape
+            )
         }
 
         SnackbarHost(
             hostState = snackbarHostState,
-            modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding()
-        )
-    }
-}
-
-@DevicePreviews
-@FontScalePreviews
-@ThemePreviews
-@Composable
-private fun WelcomeSignInScreenPreview() {
-    WalkCrewTheme {
-        Box(
             modifier = Modifier
-                .fillMaxSize()
-                .background(DeepForest)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = "WalkCrew",
-                    fontFamily = PlusJakartaSansFamily,
-                    fontWeight = FontWeight.ExtraBold,
-                    fontSize = 40.sp,
-                    color = LimeAccent
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Walk together. Win together.",
-                    color = Color(0xFFBAC7BF)
-                )
-            }
-        }
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+        )
     }
 }

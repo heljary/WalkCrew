@@ -122,13 +122,20 @@ class CrewRepository(private val context: Context) {
             val todayMembers = crew.members.map { uid ->
                 val log = todayLogsByUser[uid]
                 val profile = cachedProfiles[uid]
+                val stepGoal = profile?.dailyStepGoal?.takeIf { it > 0 } ?: 8000L
+                val streak = profile?.streakDays ?: 0
+                val memberSteps = log?.steps ?: profile?.todaySteps ?: 0L
+                val statusText = if (memberSteps >= stepGoal) "Goal reached! 🎉" else "Walking today"
                 LeaderboardMember(
                     userId = uid,
                     displayName = profile?.displayName?.ifBlank { "Walker" } ?: "Walker",
                     avatarColorIndex = profile?.avatarColorIndex ?: 0,
-                    steps = log?.steps ?: profile?.todaySteps ?: 0L,
+                    steps = memberSteps,
                     lastUpdatedMillis = log?.updatedAt?.toDate()?.time ?: 0L,
-                    isCurrentUser = (uid == currentUserId)
+                    isCurrentUser = (uid == currentUserId),
+                    dailyStepGoal = stepGoal,
+                    streakDays = streak,
+                    statusText = statusText
                 )
             }.sortedWith(
                 compareByDescending<LeaderboardMember> { it.steps }
@@ -151,13 +158,18 @@ class CrewRepository(private val context: Context) {
             val weekMembers = crew.members.map { uid ->
                 val profile = cachedProfiles[uid]
                 val steps = weekStepsByUser[uid] ?: 0L
+                val stepGoal = profile?.dailyStepGoal?.takeIf { it > 0 } ?: 8000L
+                val streak = profile?.streakDays ?: 0
                 LeaderboardMember(
                     userId = uid,
                     displayName = profile?.displayName?.ifBlank { "Walker" } ?: "Walker",
                     avatarColorIndex = profile?.avatarColorIndex ?: 0,
                     steps = steps,
                     lastUpdatedMillis = weekLatestUpdateByUser[uid] ?: 0L,
-                    isCurrentUser = (uid == currentUserId)
+                    isCurrentUser = (uid == currentUserId),
+                    dailyStepGoal = stepGoal,
+                    streakDays = streak,
+                    statusText = "${streak}d streak 🔥"
                 )
             }.sortedWith(
                 compareByDescending<LeaderboardMember> { it.steps }

@@ -43,9 +43,11 @@ googleid = "1.1.1"
 healthConnect = "1.1.0-alpha11"
 workManager = "2.10.0"
 revenueCat = "8.12.2"
+facebookLogin = "17.0.2"
 
 
 [libraries]
+facebook-login = { group = "com.facebook.android", name = "facebook-login", version.ref = "facebookLogin" }
 revenuecat-purchases = { group = "com.revenuecat.purchases", name = "purchases", version.ref = "revenueCat" }
 revenuecat-purchases-ui = { group = "com.revenuecat.purchases", name = "purchases-ui", version.ref = "revenueCat" }
 androidx-health-connect = { group = "androidx.health.connect", name = "connect-client", version.ref = "healthConnect" }

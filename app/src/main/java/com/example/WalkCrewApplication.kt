@@ -18,6 +18,15 @@ class WalkCrewApplication : Application() {
         }
 
         try {
+            if (com.facebook.FacebookSdk.isInitialized()) {
+                com.facebook.FacebookSdk.setAutoLogAppEventsEnabled(false)
+                com.facebook.FacebookSdk.setAdvertiserIDCollectionEnabled(false)
+            }
+        } catch (e: Throwable) {
+            // Ignore
+        }
+
+        try {
             RevenueCatManager.getInstance(this).initialize()
         } catch (e: Exception) {
             Log.w("WalkCrewApp", "RevenueCat initialization: ${e.message}")

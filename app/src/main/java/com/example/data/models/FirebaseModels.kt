@@ -49,7 +49,10 @@ data class LeaderboardMember(
     val steps: Long = 0L,
     val rank: Int = 1,
     val lastUpdatedMillis: Long = 0L,
-    val isCurrentUser: Boolean = false
+    val isCurrentUser: Boolean = false,
+    val dailyStepGoal: Long = 8000L,
+    val streakDays: Int = 0,
+    val statusText: String = ""
 )
 
 data class CrewHistoryModel(
