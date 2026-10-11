@@ -18,12 +18,11 @@ class WalkCrewApplication : Application() {
         }
 
         try {
-            if (com.facebook.FacebookSdk.isInitialized()) {
-                com.facebook.FacebookSdk.setAutoLogAppEventsEnabled(false)
-                com.facebook.FacebookSdk.setAdvertiserIDCollectionEnabled(false)
-            }
+            com.facebook.FacebookSdk.sdkInitialize(this)
+            com.facebook.FacebookSdk.setAutoLogAppEventsEnabled(false)
+            com.facebook.FacebookSdk.setAdvertiserIDCollectionEnabled(false)
         } catch (e: Throwable) {
-            // Ignore
+            Log.w("WalkCrewApp", "Facebook SDK init error: ${e.message}")
         }
 
         try {
