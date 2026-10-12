@@ -78,6 +78,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import com.example.ui.util.PluralUtils
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -201,19 +202,25 @@ fun CrewsScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column {
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Crew",
+                                text = activeCrew?.crew?.name?.ifBlank { "Crew" } ?: "Crew",
                                 style = MaterialTheme.typography.headlineMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = WalkCrewTheme.extendedColors.textPrimary
+                                color = WalkCrewTheme.extendedColors.textPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                             Text(
                                 text = "Friends' daily steps & group progress",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = WalkCrewTheme.extendedColors.textSecondary
+                                color = WalkCrewTheme.extendedColors.textSecondary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
+
+                        Spacer(modifier = Modifier.width(12.dp))
 
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -480,10 +487,10 @@ fun CrewsScreen(
                 item {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         PrimaryButton(
-                            text = "Create a crew",
+                            text = "Create crew",
                             onClick = { viewModel.openCreateSheet() },
                             modifier = Modifier.weight(1f),
                             leadingIcon = Icons.Rounded.Add,
@@ -605,11 +612,15 @@ fun CrewOverviewHeroCard(
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        text = "$memberCount friends walking together • $duration",
+                        text = "${PluralUtils.friends(memberCount)} walking together • $duration",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFFBAC7BF)
+                        color = Color(0xFFBAC7BF),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
+
+                Spacer(modifier = Modifier.width(8.dp))
 
                 // Lime Accent Pill
                 Box(
@@ -968,32 +979,32 @@ fun FriendDailyProgressCard(
                     color = WalkCrewTheme.extendedColors.textSecondary
                 )
 
-                // Interactive Buttons
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Quick Cheer Reaction Pills
-                    listOf("🔥", "👏", "💪").forEach { emoji ->
-                        val count = reactions[emoji] ?: 0
-                        Box(
-                            modifier = Modifier
-                                .sizeIn(minWidth = 36.dp, minHeight = 36.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.surfaceVariant)
-                                .clickable { onCheerClick(emoji) }
-                                .padding(horizontal = 6.dp, vertical = 4.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = if (count > 0) "$emoji $count" else emoji,
-                                fontSize = 12.sp
-                            )
+                // Interactive Buttons (hidden on current user's own row)
+                if (!isCurrentUser) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Quick Cheer Reaction Pills
+                        listOf("🔥", "👏", "💪").forEach { emoji ->
+                            val count = reactions[emoji] ?: 0
+                            Box(
+                                modifier = Modifier
+                                    .sizeIn(minWidth = 36.dp, minHeight = 36.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                                    .clickable { onCheerClick(emoji) }
+                                    .padding(horizontal = 6.dp, vertical = 4.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = if (count > 0) "$emoji $count" else emoji,
+                                    fontSize = 12.sp
+                                )
+                            }
                         }
-                    }
 
-                    // Nudge Button (for friends, min 48dp touch target)
-                    if (!isCurrentUser) {
+                        // Nudge Button (for friends, min 48dp touch target)
                         Box(
                             modifier = Modifier
                                 .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
@@ -1025,6 +1036,29 @@ fun FriendDailyProgressCard(
                                     color = if (isNudged) WalkCrewTheme.extendedColors.textSecondary
                                     else MaterialTheme.colorScheme.primary
                                 )
+                            }
+                        }
+                    }
+                } else {
+                    // Current user: display any received cheers from teammates as read-only badges
+                    val activeReactions = reactions.filter { it.value > 0 }
+                    if (activeReactions.isNotEmpty()) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            activeReactions.forEach { (emoji, count) ->
+                                Box(
+                                    modifier = Modifier
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        text = "$emoji $count",
+                                        fontSize = 12.sp
+                                    )
+                                }
                             }
                         }
                     }
@@ -1095,7 +1129,7 @@ fun EmptyCrewsCard(
             Spacer(modifier = Modifier.height(28.dp))
 
             PrimaryButton(
-                text = "Create a crew",
+                text = "Create crew",
                 onClick = onCreateClick,
                 leadingIcon = Icons.Rounded.Add,
                 modifier = Modifier.fillMaxWidth(),
@@ -1152,8 +1186,13 @@ fun CrewCard(
                     text = crew.name,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = WalkCrewTheme.extendedColors.textPrimary
+                    color = WalkCrewTheme.extendedColors.textPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
                 )
+
+                Spacer(modifier = Modifier.width(8.dp))
 
                 Box(
                     modifier = Modifier
@@ -1182,9 +1221,11 @@ fun CrewCard(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "$memberCount ${if (memberCount == 1) "walker" else "walkers"} • ${crew.duration}",
+                    text = "${PluralUtils.walkers(memberCount)} • ${crew.duration}",
                     style = MaterialTheme.typography.bodySmall,
-                    color = WalkCrewTheme.extendedColors.textSecondary
+                    color = WalkCrewTheme.extendedColors.textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
 

@@ -327,22 +327,36 @@ fun PaywallScreen(
             Spacer(modifier = Modifier.height(20.dp))
 
             // 3-day free trial line
-            Text(
-                text = "3-day free trial, cancel anytime in Google Play",
-                fontFamily = PlusJakartaSansFamily,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 13.sp,
-                color = LimeAccent,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.testTag("free_trial_text")
-            )
+            if (com.revenuecat.purchases.Purchases.isConfigured) {
+                Text(
+                    text = "3-day free trial, cancel anytime in Google Play",
+                    fontFamily = PlusJakartaSansFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.sp,
+                    color = LimeAccent,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.testTag("free_trial_text")
+                )
+            } else {
+                Text(
+                    text = "All WalkCrew features are currently free for all members",
+                    fontFamily = PlusJakartaSansFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.sp,
+                    color = LimeAccent,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.testTag("free_trial_text")
+                )
+            }
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            // Big lime pill button "Start free trial / Continue"
+            // Big lime pill button
             Button(
                 onClick = {
-                    if (activity != null) {
+                    if (!com.revenuecat.purchases.Purchases.isConfigured) {
+                        onDismiss()
+                    } else if (activity != null) {
                         viewModel.purchase(
                             activity = activity,
                             onSuccess = { onDismiss() }
@@ -363,11 +377,19 @@ fun PaywallScreen(
                     .height(58.dp)
                     .testTag("start_free_trial_button")
             ) {
-                if (isPurchasing || isOfferingsLoading) {
+                if (isPurchasing || (isOfferingsLoading && com.revenuecat.purchases.Purchases.isConfigured)) {
                     CircularProgressIndicator(
                         color = DeepForest,
                         strokeWidth = 2.5.dp,
                         modifier = Modifier.size(24.dp)
+                    )
+                } else if (!com.revenuecat.purchases.Purchases.isConfigured) {
+                    Text(
+                        text = "Continue with Free Plan",
+                        fontFamily = PlusJakartaSansFamily,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 17.sp,
+                        color = DeepForest
                     )
                 } else {
                     Text(

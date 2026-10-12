@@ -114,7 +114,7 @@ fun PrimaryButton(
             disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
             disabledContentColor = WalkCrewTheme.extendedColors.textSecondary
         ),
-        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp),
+        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 14.dp),
         modifier = modifier
             .height(56.dp)
             .testTag(testTag)
@@ -129,12 +129,14 @@ fun PrimaryButton(
                     contentDescription = null,
                     modifier = Modifier.size(20.dp)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(6.dp))
             }
             Text(
                 text = text,
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }
@@ -170,7 +172,7 @@ fun SecondaryButton(
             contentColor = WalkCrewTheme.extendedColors.textPrimary,
             disabledContentColor = WalkCrewTheme.extendedColors.textSecondary
         ),
-        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp),
+        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 14.dp),
         modifier = modifier
             .height(56.dp)
             .testTag(testTag)
@@ -185,12 +187,14 @@ fun SecondaryButton(
                     contentDescription = null,
                     modifier = Modifier.size(20.dp)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(6.dp))
             }
             Text(
                 text = text,
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }

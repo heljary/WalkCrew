@@ -26,7 +26,9 @@ class NudgeCheckWorker(
         val todayStr = LocalDate.now().toString()
 
         try {
-            val db = FirebaseFirestore.getInstance()
+            val dbId = applicationContext.getString(com.example.R.string.firestore_database_id)
+            val db = FirebaseFirestore.getInstance(dbId)
+            com.example.data.WalkCrewLogger.logRead("crews", details = "querying crews where members contains $uid in NudgeCheckWorker")
             val crewsSnapshot = db.collection("crews")
                 .whereArrayContains("members", uid)
                 .get()

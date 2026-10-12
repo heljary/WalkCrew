@@ -167,6 +167,19 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(Spacing.md))
 
+            // Activity Recognition Hardware Sensor Permission banner (Android 10+)
+            if (!hasActivityPermission && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                StaggeredEntrance(index = 1) {
+                    ActivityRecognitionBanner(
+                        hasPermission = hasActivityPermission,
+                        onRequestPermission = {
+                            activityRecognitionPermissionLauncher.launch(android.Manifest.permission.ACTIVITY_RECOGNITION)
+                        }
+                    )
+                }
+                Spacer(modifier = Modifier.height(Spacing.md))
+            }
+
             // Health Connect Status banner (when not granted or not installed)
             StaggeredEntrance(index = 1) {
                 HealthConnectBanner(

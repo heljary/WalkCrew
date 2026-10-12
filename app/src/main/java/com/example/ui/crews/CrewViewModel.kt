@@ -189,7 +189,7 @@ class CrewViewModel(application: Application) : AndroidViewModel(application) {
 
     fun openCreateSheet() {
         _errorMessage.value = null
-        if (!isPremium.value && _crews.value.size >= 2) {
+        if (revenueCatManager.isAvailable && !isPremium.value && _crews.value.size >= 2) {
             _paywallReason.value = "Free members can join up to 2 crews. Upgrade to Premium for unlimited crews!"
             _showPaywall.value = true
             return
@@ -203,7 +203,7 @@ class CrewViewModel(application: Application) : AndroidViewModel(application) {
 
     fun openJoinSheet() {
         _errorMessage.value = null
-        if (!isPremium.value && _crews.value.size >= 2) {
+        if (revenueCatManager.isAvailable && !isPremium.value && _crews.value.size >= 2) {
             _paywallReason.value = "Free members can join up to 2 crews. Upgrade to Premium for unlimited crews!"
             _showPaywall.value = true
             return
@@ -216,6 +216,7 @@ class CrewViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun openPaywall(reason: String? = null) {
+        if (!revenueCatManager.isAvailable) return
         _paywallReason.value = reason
         _showPaywall.value = true
     }
@@ -227,7 +228,7 @@ class CrewViewModel(application: Application) : AndroidViewModel(application) {
 
     fun createCrew(name: String, duration: String = "Weekly", onCreated: (CrewModel) -> Unit = {}) {
         val uid = currentUserId ?: return
-        if (!isPremium.value && _crews.value.size >= 2) {
+        if (revenueCatManager.isAvailable && !isPremium.value && _crews.value.size >= 2) {
             _showCreateSheet.value = false
             _paywallReason.value = "Free members can join up to 2 crews. Upgrade to Premium for unlimited crews!"
             _showPaywall.value = true
@@ -251,7 +252,7 @@ class CrewViewModel(application: Application) : AndroidViewModel(application) {
 
     fun joinCrewWithCode(code: String, onJoined: (CrewModel) -> Unit = {}) {
         val uid = currentUserId ?: return
-        if (!isPremium.value && _crews.value.size >= 2) {
+        if (revenueCatManager.isAvailable && !isPremium.value && _crews.value.size >= 2) {
             _showJoinSheet.value = false
             _paywallReason.value = "Free members can join up to 2 crews. Upgrade to Premium for unlimited crews!"
             _showPaywall.value = true

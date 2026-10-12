@@ -22,17 +22,27 @@ class WalkCrewApplication : Application() {
 
 
 
-        // Test Store Billing initialization with RevenueCat
-        try {
-            Purchases.logLevel = LogLevel.DEBUG
-            Purchases.configure(
-                PurchasesConfiguration.Builder(this, "test_jWPmZHHsWTAOnILNsMOCKUwXmjN")
-                    .build()
-            )
-            RevenueCatManager.getInstance(this).setupAfterConfigure()
-            Log.i("WalkCrewApp", "RevenueCat configured with Test Store API key in LogLevel.DEBUG")
-        } catch (e: Exception) {
-            Log.e("WalkCrewApp", "RevenueCat initialization failed: ${e.message}")
+        // Initialize RevenueCat only when a valid Google Play public API key ('goog_...') is provided
+        val apiKey = try {
+            BuildConfig.REVENUECAT_API_KEY
+        } catch (e: Throwable) {
+            ""
+        }
+
+        if (apiKey.isNotBlank() && apiKey.startsWith("goog_")) {
+            try {
+                Purchases.logLevel = if (BuildConfig.DEBUG) LogLevel.DEBUG else LogLevel.INFO
+                Purchases.configure(
+                    PurchasesConfiguration.Builder(this, apiKey)
+                        .build()
+                )
+                RevenueCatManager.getInstance(this).setupAfterConfigure()
+                Log.i("WalkCrewApp", "RevenueCat initialized with provided Google Play API key")
+            } catch (e: Exception) {
+                Log.e("WalkCrewApp", "RevenueCat initialization failed: ${e.message}")
+            }
+        } else {
+            Log.i("WalkCrewApp", "REVENUECAT_API_KEY is not configured with a valid Google Play key ('goog_...'). Treating all users as free tier.")
         }
     }
 }

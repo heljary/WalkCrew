@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
+import com.example.data.WalkCrewLogger
 import java.time.DayOfWeek
 import java.time.Duration
 import java.time.LocalDate
@@ -50,6 +51,7 @@ class CrewRepository(private val context: Context) {
      * Observes all crews that the user belongs to
      */
     fun observeUserCrews(userId: String): Flow<List<CrewWithMembers>> {
+        WalkCrewLogger.logRead("crews", details = "observing crews for member $userId")
         return db.collection("crews")
             .whereArrayContains("members", userId)
             .snapshots()
@@ -60,12 +62,13 @@ class CrewRepository(private val context: Context) {
                     val memberIds = crew.members.take(4)
                     for (memberId in memberIds) {
                         try {
+                            WalkCrewLogger.logRead("users", memberId, "fetching crew member profile")
                             val userDoc = db.collection("users").document(memberId).get().await()
                             if (userDoc.exists()) {
                                 userDoc.toObject(UserProfile::class.java)?.let { memberProfiles.add(it) }
                             }
                         } catch (e: Exception) {
-                            Log.w(TAG, "Failed to load member profile $memberId: ${e.message}")
+                            WalkCrewLogger.logError("fetchMemberProfile($memberId)", e)
                         }
                     }
 
@@ -80,7 +83,7 @@ class CrewRepository(private val context: Context) {
                 }
             }
             .catch { error ->
-                Log.e(TAG, "Error observing user crews: ${error.message}", error)
+                WalkCrewLogger.logError("observeUserCrews($userId)", error)
                 emit(emptyList())
             }
     }
@@ -273,6 +276,7 @@ class CrewRepository(private val context: Context) {
             val crewRef = db.collection("crews").document()
             val crewId = crewRef.id
 
+            WalkCrewLogger.logWrite("crews", crewId, "creating new crew: ${name.trim()}")
             val crewData = hashMapOf<String, Any>(
                 "crewId" to crewId,
                 "name" to name.trim(),
@@ -286,6 +290,7 @@ class CrewRepository(private val context: Context) {
 
             crewRef.set(crewData).await()
 
+            WalkCrewLogger.logWrite("inviteCodes", inviteCode, "saving invite code index for crew $crewId")
             db.collection("inviteCodes").document(inviteCode).set(
                 mapOf(
                     "code" to inviteCode,
@@ -304,7 +309,7 @@ class CrewRepository(private val context: Context) {
             )
             Result.success(crew)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to create crew: ${e.message}", e)
+            WalkCrewLogger.logError("createCrew($name)", e)
             Result.failure(e)
         }
     }
@@ -312,6 +317,7 @@ class CrewRepository(private val context: Context) {
     suspend fun joinCrewWithCode(code: String, userId: String): Result<CrewModel> {
         val sanitizedCode = code.trim().uppercase()
         return try {
+            WalkCrewLogger.logRead("inviteCodes", sanitizedCode, "resolving invite code for join")
             val lookupDoc = db.collection("inviteCodes").document(sanitizedCode).get().await()
             if (!lookupDoc.exists()) {
                 return Result.failure(IllegalArgumentException("Invalid crew code. Please verify and try again."))
@@ -320,6 +326,7 @@ class CrewRepository(private val context: Context) {
             val crewId = lookupDoc.getString("crewId")
                 ?: return Result.failure(IllegalStateException("Crew reference not found for code $sanitizedCode"))
 
+            WalkCrewLogger.logRead("crews", crewId, "verifying crew existence before joining")
             val crewRef = db.collection("crews").document(crewId)
             val crewDoc = crewRef.get().await()
 
@@ -333,6 +340,7 @@ class CrewRepository(private val context: Context) {
                 return Result.success(crew)
             }
 
+            WalkCrewLogger.logWrite("crews", crewId, "adding member $userId via invite code $sanitizedCode")
             crewRef.update(
                 mapOf(
                     "members" to FieldValue.arrayUnion(userId),
@@ -344,7 +352,7 @@ class CrewRepository(private val context: Context) {
             val crew = updatedDoc.toObject(CrewModel::class.java)!!
             Result.success(crew)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to join crew: ${e.message}", e)
+            WalkCrewLogger.logError("joinCrewWithCode($code, $userId)", e)
             Result.failure(e)
         }
     }
@@ -352,6 +360,7 @@ class CrewRepository(private val context: Context) {
     suspend fun syncUserStepsToCrews(userId: String, steps: Long): Result<Unit> {
         return try {
             val todayDate = LocalDate.now().toString()
+            WalkCrewLogger.logRead("crews", details = "querying user crews to sync $steps steps for $userId")
             val userCrewsSnapshot = db.collection("crews")
                 .whereArrayContains("members", userId)
                 .get()
@@ -362,6 +371,7 @@ class CrewRepository(private val context: Context) {
             for (doc in userCrewsSnapshot.documents) {
                 val crewId = doc.id
                 val logRef = doc.reference.collection("stepLogs").document(logId)
+                WalkCrewLogger.logWrite("crews/$crewId/stepLogs", logId, "recording $steps steps for $userId on $todayDate")
                 val logPayload = hashMapOf<String, Any>(
                     "userId" to userId,
                     "crewId" to crewId,
@@ -377,7 +387,7 @@ class CrewRepository(private val context: Context) {
             }
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.e(TAG, "Error syncing steps to crews: ${e.message}", e)
+            WalkCrewLogger.logError("syncUserStepsToCrews($userId, $steps)", e)
             Result.failure(e)
         }
     }
@@ -444,19 +454,21 @@ class CrewRepository(private val context: Context) {
                 "createdAt" to FieldValue.serverTimestamp()
             )
 
+            WalkCrewLogger.logWrite("crews/$crewId/nudges", nudgeDocId, "sending nudge to $toUserId from $fromUserId")
             nudgeRef.set(payload).await()
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to send nudge: ${e.message}", e)
+            WalkCrewLogger.logError("sendNudge($crewId, $toUserId)", e)
             Result.failure(e)
         }
     }
 
     fun observeCrewReactions(crewId: String): Flow<Map<String, Map<String, Int>>> = callbackFlow<Map<String, Map<String, Int>>> {
+        WalkCrewLogger.logRead("crews/$crewId/reactions", details = "observing crew reactions")
         val reactionsRef = db.collection("crews").document(crewId).collection("reactions")
         val listener = reactionsRef.addSnapshotListener { snapshot, error ->
             if (error != null) {
-                Log.e(TAG, "Error observing reactions: ${error.message}")
+                WalkCrewLogger.logError("observeCrewReactions($crewId)", error)
                 return@addSnapshotListener
             }
             if (snapshot != null) {
@@ -477,6 +489,7 @@ class CrewRepository(private val context: Context) {
         }
         awaitClose { listener.remove() }
     }.catch {
+        WalkCrewLogger.logError("observeCrewReactions($crewId)", it)
         emit(emptyMap())
     }
 
@@ -490,6 +503,7 @@ class CrewRepository(private val context: Context) {
             .collection("reactions").document(targetUserId)
 
         return try {
+            WalkCrewLogger.logWrite("crews/$crewId/reactions", targetUserId, "adding reaction $reactionType from $fromUserId")
             val payload = hashMapOf<String, Any>(
                 "crewId" to crewId,
                 "targetUserId" to targetUserId,
@@ -500,7 +514,7 @@ class CrewRepository(private val context: Context) {
             docRef.set(payload, SetOptions.merge()).await()
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to add reaction: ${e.message}", e)
+            WalkCrewLogger.logError("addReaction($crewId, $targetUserId, $reactionType)", e)
             Result.failure(e)
         }
     }

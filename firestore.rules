@@ -29,6 +29,7 @@ service cloud.firestore {
              data.avatarColorIndex is int && data.avatarColorIndex >= 0 && data.avatarColorIndex <= 7 &&
              data.dailyStepGoal is int && data.dailyStepGoal >= 3000 && data.dailyStepGoal <= 20000 &&
              (!('todaySteps' in data) || data.todaySteps is int) &&
+             (!('photoUrl' in data) || data.photoUrl == null || data.photoUrl is string) &&
              (!('fcmToken' in data) || data.fcmToken is string) &&
              (!('reminderEnabled' in data) || data.reminderEnabled is bool) &&
              (!('streakDays' in data) || data.streakDays is int) &&
@@ -45,7 +46,7 @@ service cloud.firestore {
       allow update: if isSignedIn() && request.auth.uid == userId &&
                        incoming().userId == existing().userId &&
                        isValidUser(incoming()) &&
-                       incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'avatarColorIndex', 'dailyStepGoal', 'todaySteps', 'fcmToken', 'reminderEnabled', 'streakDays', 'updatedAt', 'createdAt']);
+                       incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'avatarColorIndex', 'dailyStepGoal', 'todaySteps', 'photoUrl', 'fcmToken', 'reminderEnabled', 'streakDays', 'updatedAt', 'createdAt']);
       allow delete: if isSignedIn() && request.auth.uid == userId;
     }
 
@@ -62,8 +63,10 @@ service cloud.firestore {
     }
 
     match /crews/{crewId} {
-      // User can only read crews they belong to
-      allow get, list: if isSignedIn() && (request.auth.uid in existing().members || request.auth.uid == existing().ownerId);
+      // User can get a crew document to check details or join with invite code,
+      // and list only crews they are a member or owner of
+      allow get: if isSignedIn();
+      allow list: if isSignedIn() && (request.auth.uid in resource.data.members || request.auth.uid == resource.data.ownerId);
 
       allow create: if isSignedIn() &&
                        incoming().ownerId == request.auth.uid &&
@@ -114,8 +117,7 @@ service cloud.firestore {
                          incoming().crewId == existing().crewId &&
                          incoming().date == existing().date &&
                          (request.auth.uid in get(/databases/$(database)/documents/crews/$(crewId)).data.members) &&
-                         isValidStepLog(incoming()) &&
-                         incoming().diff(existing()).affectedKeys().hasOnly(['steps', 'updatedAt']);
+                         isValidStepLog(incoming());
 
         allow delete: if isSignedIn() && existing().userId == request.auth.uid;
       }

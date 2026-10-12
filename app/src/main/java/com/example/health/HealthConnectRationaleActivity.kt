@@ -21,7 +21,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.DirectionsWalk
+import androidx.compose.material.icons.automirrored.rounded.DirectionsWalk
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material3.Icon
@@ -81,7 +81,7 @@ fun HealthConnectRationaleScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Rounded.DirectionsWalk,
+                    imageVector = Icons.AutoMirrored.Rounded.DirectionsWalk,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(36.dp)
@@ -108,7 +108,7 @@ fun HealthConnectRationaleScreen(
 
             // Explanation cards
             RationalePointCard(
-                icon = Icons.Rounded.DirectionsWalk,
+                icon = Icons.AutoMirrored.Rounded.DirectionsWalk,
                 title = "Daily Goal Tracking",
                 description = "We read today's step count to update your 240dp StepRing and motivate you toward your 8,000 steps goal."
             )

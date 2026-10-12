@@ -60,16 +60,20 @@ class StepTrackingService : Service() {
     }
 
     private fun startForegroundServiceNotification(currentSteps: Long) {
-        val notification = buildNotification(currentSteps)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val foregroundServiceType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_HEALTH
+        try {
+            val notification = buildNotification(currentSteps)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val foregroundServiceType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_HEALTH
+                } else {
+                    0
+                }
+                startForeground(NOTIFICATION_ID, notification, foregroundServiceType)
             } else {
-                0
+                startForeground(NOTIFICATION_ID, notification)
             }
-            startForeground(NOTIFICATION_ID, notification, foregroundServiceType)
-        } else {
-            startForeground(NOTIFICATION_ID, notification)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error starting foreground notification: ${e.message}", e)
         }
     }
 

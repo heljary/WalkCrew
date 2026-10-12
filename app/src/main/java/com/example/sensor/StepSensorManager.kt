@@ -52,6 +52,7 @@ class StepSensorManager private constructor(private val context: Context) : Sens
     fun updatePermissionStatus(granted: Boolean) {
         _hasPermission.value = granted
         if (granted) {
+            stopListening()
             startListening()
             startForegroundServiceIfPossible()
         }
@@ -80,42 +81,57 @@ class StepSensorManager private constructor(private val context: Context) : Sens
 
     @Synchronized
     fun startListening() {
-        if (isRegistered) return
+        if (!checkPermissionGranted()) {
+            Log.w(TAG, "Cannot start listening: ACTIVITY_RECOGNITION permission not granted")
+            return
+        }
         val sm = sensorManager ?: return
+        if (isRegistered) return
 
-        // 1. Prefer TYPE_STEP_COUNTER (cumulative hardware counter)
+        var registeredCounter = false
+        var registeredDetector = false
+
+        // 1. Register TYPE_STEP_COUNTER (cumulative hardware counter)
         val stepCounter = sm.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
         if (stepCounter != null) {
-            val registered = sm.registerListener(
-                this,
-                stepCounter,
-                SensorManager.SENSOR_DELAY_UI
-            )
-            if (registered) {
-                isRegistered = true
-                usingStepCounter = true
-                Log.i(TAG, "Registered TYPE_STEP_COUNTER sensor listener successfully")
-                return
+            try {
+                val registered = sm.registerListener(
+                    this,
+                    stepCounter,
+                    SensorManager.SENSOR_DELAY_UI,
+                    0 // 0 latency for instant delivery
+                )
+                if (registered) {
+                    registeredCounter = true
+                    usingStepCounter = true
+                    Log.i(TAG, "Registered TYPE_STEP_COUNTER sensor listener successfully")
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Could not register TYPE_STEP_COUNTER: ${e.message}")
             }
         }
 
-        // 2. Fallback to TYPE_STEP_DETECTOR (triggers 1 event per step taken)
+        // 2. Register TYPE_STEP_DETECTOR (triggers 1 event per step taken in real time)
         val stepDetector = sm.getDefaultSensor(Sensor.TYPE_STEP_DETECTOR)
         if (stepDetector != null) {
-            val registered = sm.registerListener(
-                this,
-                stepDetector,
-                SensorManager.SENSOR_DELAY_UI
-            )
-            if (registered) {
-                isRegistered = true
-                usingStepCounter = false
-                Log.i(TAG, "Registered TYPE_STEP_DETECTOR sensor listener successfully")
-                return
+            try {
+                val registered = sm.registerListener(
+                    this,
+                    stepDetector,
+                    SensorManager.SENSOR_DELAY_UI,
+                    0 // 0 latency for instant delivery
+                )
+                if (registered) {
+                    registeredDetector = true
+                    Log.i(TAG, "Registered TYPE_STEP_DETECTOR sensor listener successfully")
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Could not register TYPE_STEP_DETECTOR: ${e.message}")
             }
         }
 
-        Log.w(TAG, "No suitable hardware step sensor could be registered")
+        isRegistered = registeredCounter || registeredDetector
+        Log.i(TAG, "startListening result: isRegistered=$isRegistered (counter=$registeredCounter, detector=$registeredDetector)")
     }
 
     @Synchronized
@@ -168,7 +184,6 @@ class StepSensorManager private constructor(private val context: Context) : Sens
                 .putString(KEY_SAVED_DATE, todayStr)
                 .putLong(KEY_START_OFFSET, startOfDayOffset)
                 .putLong(KEY_ACCUMULATED, accumulatedSteps)
-                .putLong(KEY_TODAY_STEPS, 0L)
                 .apply()
         } else {
             val savedOffset = prefs.getLong(KEY_START_OFFSET, -1L)
@@ -192,11 +207,14 @@ class StepSensorManager private constructor(private val context: Context) : Sens
             }
         }
 
-        val todaySteps = maxOf(0L, (hardwareTotalSteps - startOfDayOffset) + accumulatedSteps)
+        val counterTodaySteps = maxOf(0L, (hardwareTotalSteps - startOfDayOffset) + accumulatedSteps)
+        val existingSteps = prefs.getLong(KEY_TODAY_STEPS, 0L)
+        val todaySteps = maxOf(existingSteps, counterTodaySteps)
 
         // Save and emit StateFlow
         prefs.edit().putLong(KEY_TODAY_STEPS, todaySteps).apply()
         _stepCount.value = todaySteps
+        Log.d(TAG, "Step counter updated today steps: $todaySteps")
     }
 
     private fun handleStepDetectorEvent() {
@@ -208,14 +226,22 @@ class StepSensorManager private constructor(private val context: Context) : Sens
                 val yesterdaySteps = prefs.getLong(KEY_TODAY_STEPS, 0L)
                 archivePastDay(savedDate, yesterdaySteps)
             }
-            prefs.edit().putString(KEY_SAVED_DATE, todayStr).apply()
+            prefs.edit()
+                .putString(KEY_SAVED_DATE, todayStr)
+                .putLong(KEY_START_OFFSET, -1L)
+                .putLong(KEY_ACCUMULATED, 0L)
+                .putLong(KEY_TODAY_STEPS, 1L)
+                .apply()
             1L
         } else {
-            prefs.getLong(KEY_TODAY_STEPS, 0L) + 1L
+            val next = prefs.getLong(KEY_TODAY_STEPS, 0L) + 1L
+            prefs.edit().putLong(KEY_TODAY_STEPS, next).apply()
+            next
         }
 
         prefs.edit().putLong(KEY_TODAY_STEPS, currentSteps).apply()
         _stepCount.value = currentSteps
+        Log.d(TAG, "Step detector recorded 1 step -> total today: $currentSteps")
     }
 
     private fun loadTodaySteps(): Long {

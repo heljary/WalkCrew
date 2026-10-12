@@ -422,4 +422,13 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             _errorMessage.value = AuthRepository.getFriendlyErrorMessage(error)
         }
     }
+
+    val currentUserId: String?
+        get() = authRepository.currentUserId
+
+    val currentUserEmail: String?
+        get() = authRepository.auth.currentUser?.email
+
+    val isEmailVerified: Boolean
+        get() = authRepository.isEmailVerified()
 }

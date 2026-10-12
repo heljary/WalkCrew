@@ -32,12 +32,6 @@ class RevenueCatManager private constructor(private val context: Context) {
         const val PRODUCT_MONTHLY = "walkcrew_monthly_premium"
         const val PRODUCT_YEARLY = "walkcrew_yearly_premium"
 
-        // RevenueCat Test Store public API key
-        const val REVENUECAT_TEST_STORE_KEY = "test_jWPmZHHsWTAOnILNsMOCKUwXmjN"
-
-        // Production Google Play public API key fallback
-        const val REVENUECAT_GOOGLE_API_KEY = "goog_cInkmqVIgHVeSVMSBFAXpzbmOtB"
-
         @Volatile
         private var instance: RevenueCatManager? = null
 
@@ -47,6 +41,12 @@ class RevenueCatManager private constructor(private val context: Context) {
             }
         }
     }
+
+    val isConfigured: Boolean
+        get() = Purchases.isConfigured
+
+    val isAvailable: Boolean
+        get() = Purchases.isConfigured
 
     private val _isPremium = MutableStateFlow(false)
     val isPremium: StateFlow<Boolean> = _isPremium.asStateFlow()

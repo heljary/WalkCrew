@@ -42,8 +42,10 @@ class StepRepository(
             .launchIn(scope)
 
         // 2. Start hardware sensor listener if permissions/sensors are present
-        stepSensorManager.startListening()
-        stepSensorManager.startForegroundServiceIfPossible()
+        if (stepSensorManager.hasPermission.value) {
+            stepSensorManager.startListening()
+            stepSensorManager.startForegroundServiceIfPossible()
+        }
 
         // 3. Check Health Connect availability
         checkHealthConnectStatus()
@@ -51,10 +53,6 @@ class StepRepository(
 
     fun onActivityRecognitionPermissionResult(granted: Boolean) {
         stepSensorManager.updatePermissionStatus(granted)
-        if (granted) {
-            stepSensorManager.startListening()
-            stepSensorManager.startForegroundServiceIfPossible()
-        }
     }
 
     fun checkHealthConnectStatus() {

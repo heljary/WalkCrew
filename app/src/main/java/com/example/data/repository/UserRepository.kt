@@ -22,6 +22,7 @@ class UserRepository(private val context: Context) {
     }
 
     fun observeUserProfile(userId: String): Flow<UserProfile?> {
+        com.example.data.WalkCrewLogger.logRead("users", userId, "observing user profile")
         return db.collection("users").document(userId)
             .snapshots()
             .map { snapshot ->
@@ -32,23 +33,25 @@ class UserRepository(private val context: Context) {
                 }
             }
             .catch { error ->
-                Log.d(TAG, "Observing user profile: ${error.message}")
+                com.example.data.WalkCrewLogger.logError("observeUserProfile($userId)", error)
                 emit(null)
             }
     }
 
     suspend fun getUserProfile(userId: String): UserProfile? {
         return try {
+            com.example.data.WalkCrewLogger.logRead("users", userId, "fetching user profile")
             val doc = db.collection("users").document(userId).get().await()
             if (doc.exists()) doc.toObject(UserProfile::class.java) else null
         } catch (e: Exception) {
-            Log.d(TAG, "User profile not found or offline: ${e.message}")
+            com.example.data.WalkCrewLogger.logError("getUserProfile($userId)", e)
             null
         }
     }
 
     suspend fun saveUserProfile(profile: UserProfile): Result<Unit> {
         return try {
+            com.example.data.WalkCrewLogger.logWrite("users", profile.userId, "saving user profile")
             val userRef = db.collection("users").document(profile.userId)
 
             val payload = hashMapOf<String, Any>(
@@ -79,13 +82,14 @@ class UserRepository(private val context: Context) {
             userRef.set(payload, SetOptions.merge()).await()
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.w(TAG, "Saving user profile: ${e.message}")
+            com.example.data.WalkCrewLogger.logError("saveUserProfile(${profile.userId})", e)
             Result.failure(e)
         }
     }
 
     suspend fun updatePhotoUrl(userId: String, photoUrl: String?): Result<Unit> {
         return try {
+            com.example.data.WalkCrewLogger.logWrite("users", userId, "updating photoUrl")
             val userRef = db.collection("users").document(userId)
             val updateData = hashMapOf<String, Any>(
                 "updatedAt" to FieldValue.serverTimestamp()
@@ -98,13 +102,14 @@ class UserRepository(private val context: Context) {
             userRef.set(updateData, SetOptions.merge()).await()
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.w(TAG, "Updating photoUrl: ${e.message}")
+            com.example.data.WalkCrewLogger.logError("updatePhotoUrl($userId)", e)
             Result.failure(e)
         }
     }
 
     suspend fun updateDailyGoal(userId: String, goal: Long): Result<Unit> {
         return try {
+            com.example.data.WalkCrewLogger.logWrite("users", userId, "updating dailyStepGoal to $goal")
             val userRef = db.collection("users").document(userId)
             userRef.set(
                 mapOf(
@@ -115,13 +120,14 @@ class UserRepository(private val context: Context) {
             ).await()
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.w(TAG, "Updating daily goal: ${e.message}")
+            com.example.data.WalkCrewLogger.logError("updateDailyGoal($userId)", e)
             Result.failure(e)
         }
     }
 
     suspend fun updateReminderEnabled(userId: String, enabled: Boolean): Result<Unit> {
         return try {
+            com.example.data.WalkCrewLogger.logWrite("users", userId, "updating reminderEnabled to $enabled")
             val userRef = db.collection("users").document(userId)
             userRef.set(
                 mapOf(
@@ -132,13 +138,14 @@ class UserRepository(private val context: Context) {
             ).await()
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.w(TAG, "Updating reminder setting: ${e.message}")
+            com.example.data.WalkCrewLogger.logError("updateReminderEnabled($userId)", e)
             Result.failure(e)
         }
     }
 
     suspend fun updateTodaySteps(userId: String, steps: Long): Result<Unit> {
         return try {
+            com.example.data.WalkCrewLogger.logWrite("users", userId, "updating todaySteps to $steps")
             val userRef = db.collection("users").document(userId)
             userRef.set(
                 mapOf(
@@ -149,17 +156,18 @@ class UserRepository(private val context: Context) {
             ).await()
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.w(TAG, "Updating steps: ${e.message}")
+            com.example.data.WalkCrewLogger.logError("updateTodaySteps($userId)", e)
             Result.failure(e)
         }
     }
 
     suspend fun deleteUserAccount(userId: String): Result<Unit> {
         return try {
+            com.example.data.WalkCrewLogger.logWrite("users", userId, "deleting user profile document")
             db.collection("users").document(userId).delete().await()
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.w(TAG, "Deleting user profile: ${e.message}")
+            com.example.data.WalkCrewLogger.logError("deleteUserAccount($userId)", e)
             Result.failure(e)
         }
     }
