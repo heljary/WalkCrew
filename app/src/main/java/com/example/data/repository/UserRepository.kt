@@ -62,6 +62,10 @@ class UserRepository(private val context: Context) {
                 "updatedAt" to FieldValue.serverTimestamp()
             )
 
+            if (profile.photoUrl != null) {
+                payload["photoUrl"] = profile.photoUrl
+            }
+
             if (profile.createdAt != null) {
                 payload["createdAt"] = profile.createdAt
             } else {
@@ -76,6 +80,25 @@ class UserRepository(private val context: Context) {
             Result.success(Unit)
         } catch (e: Exception) {
             Log.w(TAG, "Saving user profile: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updatePhotoUrl(userId: String, photoUrl: String?): Result<Unit> {
+        return try {
+            val userRef = db.collection("users").document(userId)
+            val updateData = hashMapOf<String, Any>(
+                "updatedAt" to FieldValue.serverTimestamp()
+            )
+            if (photoUrl != null) {
+                updateData["photoUrl"] = photoUrl
+            } else {
+                updateData["photoUrl"] = FieldValue.delete()
+            }
+            userRef.set(updateData, SetOptions.merge()).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.w(TAG, "Updating photoUrl: ${e.message}")
             Result.failure(e)
         }
     }

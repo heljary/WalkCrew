@@ -77,11 +77,22 @@ import com.example.ui.theme.CardShape
 import com.example.ui.theme.Spacing
 import com.example.ui.theme.WalkCrewTheme
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.rounded.CameraAlt
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import com.example.ui.theme.LimeAccent
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
     viewModel: HomeViewModel,
     modifier: Modifier = Modifier,
     authViewModel: com.example.ui.auth.AuthViewModel? = null,
+    photoViewModel: ProfilePhotoViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
     onSignOut: () -> Unit = {},
     onDeleteAccount: () -> Unit = {},
     onNavigateToPaywall: () -> Unit = {}
@@ -96,6 +107,28 @@ fun ProfileScreen(
 
     LaunchedEffect(Unit) {
         revenueCatManager.refreshCustomerInfo()
+    }
+
+    val photoUiState by photoViewModel.uiState.collectAsState()
+    val currentPhotoUrl = photoUiState.photoUrl ?: userProfile?.photoUrl
+
+    var showAvatarActionSheet by remember { mutableStateOf(false) }
+    var showFullscreenPhotoViewer by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            photoViewModel.uploadPhoto(uri)
+        }
+    }
+
+    LaunchedEffect(photoUiState.errorMessage) {
+        photoUiState.errorMessage?.let { error ->
+            snackbarHostState.showSnackbar(error)
+            photoViewModel.clearError()
+        }
     }
 
     var showEditNameDialog by remember { mutableStateOf(false) }
@@ -145,12 +178,67 @@ fun ProfileScreen(
                     .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Avatar(
-                    initials = formattedUserName.take(2).uppercase().ifBlank { "WC" },
-                    colorIndex = avatarColorIndex,
-                    size = 72.dp,
-                    testTag = "profile_large_avatar"
-                )
+                // Profile Avatar with Clickable Wrapper & Edit Badge
+                Box(
+                    modifier = Modifier
+                        .size(88.dp)
+                        .testTag("profile_avatar_wrapper"),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Avatar(
+                        initials = formattedUserName.take(2).uppercase().ifBlank { "WC" },
+                        photoUrl = currentPhotoUrl,
+                        colorIndex = avatarColorIndex,
+                        size = 84.dp,
+                        onClick = {
+                            if (!photoUiState.isUploading && !photoUiState.isDeleting) {
+                                showAvatarActionSheet = true
+                            }
+                        },
+                        testTag = "profile_large_avatar"
+                    )
+
+                    // Centered loading spinner on top of avatar while uploading or deleting
+                    if (photoUiState.isUploading || photoUiState.isDeleting) {
+                        Box(
+                            modifier = Modifier
+                                .size(84.dp)
+                                .clip(CircleShape)
+                                .background(Color.Black.copy(alpha = 0.55f))
+                                .testTag("avatar_uploading_overlay"),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                color = LimeAccent,
+                                strokeWidth = 3.dp,
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+                    }
+
+                    // Edit badge at bottom-right
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .align(Alignment.BottomEnd)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary)
+                            .border(2.dp, MaterialTheme.colorScheme.surface, CircleShape)
+                            .clickable(
+                                enabled = !photoUiState.isUploading && !photoUiState.isDeleting,
+                                onClick = { showAvatarActionSheet = true }
+                            )
+                            .testTag("avatar_edit_badge"),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.CameraAlt,
+                            contentDescription = "Edit profile photo",
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(15.dp)
+                        )
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -599,7 +687,6 @@ fun ProfileScreen(
             )
         }
     }
-}
 
     if (showSignOutConfirmDialog) {
         AlertDialog(
@@ -719,9 +806,9 @@ fun ProfileScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.primary
                         )
-                    } else if (provider == "facebook.com") {
+                    } else if (provider == "google.com") {
                         Text(
-                            text = "Please tap below to verify your Facebook identity.",
+                            text = "Please tap below to verify your Google identity.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -739,11 +826,6 @@ fun ProfileScreen(
                                 "google.com" -> {
                                     if (currentContext is android.app.Activity) {
                                         authViewModel.reauthenticateAndDeleteWithGoogle(currentContext)
-                                    }
-                                }
-                                "facebook.com" -> {
-                                    if (currentContext is android.app.Activity) {
-                                        authViewModel.reauthenticateAndDeleteWithFacebook(currentContext)
                                     }
                                 }
                                 else -> onDeleteAccount()
@@ -765,6 +847,45 @@ fun ProfileScreen(
             shape = CardShape,
             containerColor = MaterialTheme.colorScheme.surface
         )
+    }
+
+    // Profile Photo Action Modal (ModalBottomSheet)
+    if (showAvatarActionSheet) {
+        ProfilePhotoActionSheet(
+            hasPhoto = !currentPhotoUrl.isNullOrBlank(),
+            onDismiss = { showAvatarActionSheet = false },
+            onViewPhoto = {
+                showAvatarActionSheet = false
+                showFullscreenPhotoViewer = true
+            },
+            onChooseFromGallery = {
+                showAvatarActionSheet = false
+                photoPickerLauncher.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                )
+            },
+            onRemovePhoto = {
+                showAvatarActionSheet = false
+                photoViewModel.deletePhoto()
+            }
+        )
+    }
+
+    // Fullscreen Photo Viewer Dialog
+    if (showFullscreenPhotoViewer && !currentPhotoUrl.isNullOrBlank()) {
+        FullscreenPhotoViewerDialog(
+            photoUrl = currentPhotoUrl,
+            displayName = formattedUserName,
+            onDismiss = { showFullscreenPhotoViewer = false }
+        )
+    }
+
+    SnackbarHost(
+        hostState = snackbarHostState,
+        modifier = Modifier
+            .align(Alignment.BottomCenter)
+            .padding(bottom = navBarBottomPadding)
+    )
     }
 }
 

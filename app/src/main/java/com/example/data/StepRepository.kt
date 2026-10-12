@@ -1,13 +1,17 @@
 package com.example.data
 
 import android.content.Context
+import android.util.Log
 import com.example.health.HealthConnectManager
+import com.example.sensor.StepSensorManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.TextStyle
@@ -15,7 +19,8 @@ import java.util.Locale
 
 class StepRepository(
     private val context: Context,
-    val healthConnectManager: HealthConnectManager = HealthConnectManager(context)
+    val healthConnectManager: HealthConnectManager = HealthConnectManager(context),
+    val stepSensorManager: StepSensorManager = StepSensorManager.getInstance(context)
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -25,8 +30,31 @@ class StepRepository(
     private val _healthConnectState = MutableStateFlow<HealthConnectState>(HealthConnectState.Loading)
     val healthConnectState: StateFlow<HealthConnectState> = _healthConnectState.asStateFlow()
 
+    private var healthConnectTodaySteps: Long = 0L
+    private var healthConnectPast7Days: List<DailyStepData> = emptyList()
+
     init {
+        // 1. Observe real-time steps directly from device hardware step sensor
+        stepSensorManager.stepCount
+            .onEach { hardwareSteps ->
+                updateCombinedStats(hardwareSteps)
+            }
+            .launchIn(scope)
+
+        // 2. Start hardware sensor listener if permissions/sensors are present
+        stepSensorManager.startListening()
+        stepSensorManager.startForegroundServiceIfPossible()
+
+        // 3. Check Health Connect availability
         checkHealthConnectStatus()
+    }
+
+    fun onActivityRecognitionPermissionResult(granted: Boolean) {
+        stepSensorManager.updatePermissionStatus(granted)
+        if (granted) {
+            stepSensorManager.startListening()
+            stepSensorManager.startForegroundServiceIfPossible()
+        }
     }
 
     fun checkHealthConnectStatus() {
@@ -46,7 +74,7 @@ class StepRepository(
         }
     }
 
-    fun onPermissionResult(granted: Boolean) {
+    fun onHealthConnectPermissionResult(granted: Boolean) {
         scope.launch {
             if (granted) {
                 _healthConnectState.value = HealthConnectState.AvailableAndGranted
@@ -68,49 +96,71 @@ class StepRepository(
             checkHealthConnectStatus()
             if (_healthConnectState.value is HealthConnectState.AvailableAndGranted) {
                 fetchHealthConnectData()
+            } else {
+                updateCombinedStats(stepSensorManager.stepCount.value)
             }
         }
     }
 
     private suspend fun fetchHealthConnectData() {
-        val todaySteps = healthConnectManager.readTodaySteps()
-        val past7Days = healthConnectManager.readPast7DaysSteps()
-
-        // If Health Connect has valid records, use them!
-        // If it returns 0 (e.g. freshly installed or running on test emulator),
-        // we merge with realistic baseline demo records so UI is interactive and populated.
-        val totalStepsRecorded = todaySteps + past7Days.sumOf { it.steps }
-        if (totalStepsRecorded > 0) {
-            _userStats.value = UserStepStats.fromSteps(
-                steps = todaySteps,
-                weeklyHistory = past7Days,
-                isSimulated = false
-            )
-        } else {
-            // Keep clean 0 steps baseline
-            _userStats.value = createInitialSampleStats()
+        try {
+            healthConnectTodaySteps = healthConnectManager.readTodaySteps()
+            healthConnectPast7Days = healthConnectManager.readPast7DaysSteps()
+            updateCombinedStats(stepSensorManager.stepCount.value)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error fetching Health Connect data: ${e.message}")
         }
     }
 
-    /**
-     * Test / demo helper: adds steps so the user can test the spring ring animation,
-     * live stat computations, and goal completion in emulator.
-     */
-    fun addSimulatedSteps(amount: Long) {
-        val current = _userStats.value
-        val newSteps = current.steps + amount
-        val updatedHistory = current.weeklyHistory.map { day ->
-            if (day.isToday) day.copy(steps = newSteps) else day
+    private fun updateCombinedStats(hardwareSteps: Long) {
+        // Dual step tracking logic:
+        // Use the highest of hardware sensor steps or Health Connect steps for today.
+        // This ensures if the user walks with the phone, the hardware sensor immediately counts.
+        // If they wore a smartwatch/external tracker that synced to Health Connect, that higher value is preserved.
+        val effectiveTodaySteps = maxOf(hardwareSteps, healthConnectTodaySteps)
+
+        val today = LocalDate.now()
+        val history = if (healthConnectPast7Days.isNotEmpty()) {
+            healthConnectPast7Days.map { day ->
+                if (day.isToday) day.copy(steps = effectiveTodaySteps) else day
+            }
+        } else {
+            // Build base history from local archive if available
+            (6 downTo 0).map { i ->
+                val date = today.minusDays(i.toLong())
+                val dayName = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+                val dayInitial = dayName.take(1).uppercase(Locale.getDefault())
+                val archived = if (i == 0) effectiveTodaySteps else stepSensorManager.getArchivedStepsForDate(date.toString())
+                DailyStepData(
+                    date = date,
+                    dayInitial = dayInitial,
+                    dayName = dayName,
+                    steps = archived,
+                    isToday = (i == 0),
+                    goal = 8000L
+                )
+            }
         }
+
+        val currentGoal = _userStats.value.goal
         _userStats.value = UserStepStats.fromSteps(
-            steps = newSteps,
-            weeklyHistory = updatedHistory,
-            goal = current.goal,
-            isSimulated = true
+            steps = effectiveTodaySteps,
+            weeklyHistory = history,
+            goal = currentGoal,
+            isSimulated = false
         )
     }
 
+    /**
+     * Test / demo helper
+     */
+    fun addSimulatedSteps(amount: Long) {
+        stepSensorManager.addManualSteps(amount)
+    }
+
     fun resetAllProgress() {
+        stepSensorManager.resetSteps()
+        healthConnectTodaySteps = 0L
         _userStats.value = createInitialSampleStats()
     }
 
@@ -119,6 +169,8 @@ class StepRepository(
     }
 
     companion object {
+        private const val TAG = "StepRepository"
+
         @Volatile
         private var INSTANCE: StepRepository? = null
 

@@ -10,6 +10,7 @@ import com.example.data.models.UserProfile
 import com.example.data.repository.AuthRepository
 import com.example.data.repository.CrewRepository
 import com.example.data.repository.UserRepository
+import com.example.sensor.StepSensorManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -20,6 +21,7 @@ import kotlinx.coroutines.launch
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val stepRepository = StepRepository.getInstance(application)
+    private val stepSensorManager = StepSensorManager.getInstance(application)
     private val authRepository = AuthRepository.getInstance(application)
     private val userRepository = UserRepository.getInstance(application)
     private val crewRepository = CrewRepository.getInstance(application)
@@ -37,6 +39,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = stepRepository.healthConnectState.value
         )
+
+    val hasPhysicalSensor: Boolean
+        get() = stepSensorManager.hasPhysicalSensor()
+
+    val hasActivityRecognitionPermission: StateFlow<Boolean> = stepSensorManager.hasPermission
 
     private val _userProfile = MutableStateFlow<UserProfile?>(null)
     val userProfile: StateFlow<UserProfile?> = _userProfile.asStateFlow()
@@ -59,8 +66,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun onPermissionResult(granted: Boolean) {
-        stepRepository.onPermissionResult(granted)
+    fun onActivityRecognitionPermissionResult(granted: Boolean) {
+        stepRepository.onActivityRecognitionPermissionResult(granted)
+    }
+
+    fun onHealthConnectPermissionResult(granted: Boolean) {
+        stepRepository.onHealthConnectPermissionResult(granted)
     }
 
     fun refreshSteps() {

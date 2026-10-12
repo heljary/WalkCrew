@@ -67,11 +67,4 @@ class MainActivity : ComponentActivity() {
             // Log or ignore if WorkManager initialization delayed
         }
     }
-
-    @Deprecated("Deprecated in Java")
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: android.content.Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        com.example.data.repository.AuthRepository.getInstance(this)
-            .handleFacebookActivityResult(requestCode, resultCode, data)
-    }
 }

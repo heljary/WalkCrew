@@ -101,13 +101,28 @@ fun HomeScreen(
         onPauseOrDispose { }
     }
 
+    // Permission launcher for ACTIVITY_RECOGNITION on Android 10+ (API 29+)
+    val activityRecognitionPermissionLauncher = rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        viewModel.onActivityRecognitionPermissionResult(granted)
+    }
+
+    // Auto-request ACTIVITY_RECOGNITION if not granted yet
+    val hasActivityPermission by viewModel.hasActivityRecognitionPermission.collectAsState()
+    LaunchedEffect(hasActivityPermission) {
+        if (!hasActivityPermission && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            activityRecognitionPermissionLauncher.launch(android.Manifest.permission.ACTIVITY_RECOGNITION)
+        }
+    }
+
     // Permission launcher for Health Connect
     val healthConnectManager = remember { HealthConnectManager(context) }
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = PermissionController.createRequestPermissionResultContract()
     ) { grantedSet ->
         val granted = grantedSet.containsAll(healthConnectManager.permissions)
-        viewModel.onPermissionResult(granted)
+        viewModel.onHealthConnectPermissionResult(granted)
     }
 
     val greeting = remember {
@@ -144,6 +159,7 @@ fun HomeScreen(
                     greeting = greeting,
                     userName = formattedUserName,
                     avatarColorIndex = avatarColorIndex,
+                    photoUrl = userProfile?.photoUrl,
                     onRefresh = { viewModel.refreshSteps() },
                     onProfile = onNavigateToProfile
                 )
@@ -258,6 +274,7 @@ private fun GreetingRow(
     greeting: String,
     userName: String,
     avatarColorIndex: Int,
+    photoUrl: String? = null,
     onRefresh: () -> Unit,
     onProfile: () -> Unit
 ) {
@@ -301,6 +318,7 @@ private fun GreetingRow(
 
             Avatar(
                 initials = userName.take(2).uppercase(Locale.getDefault()),
+                photoUrl = photoUrl,
                 colorIndex = avatarColorIndex,
                 size = 48.dp,
                 onClick = onProfile,

@@ -9,19 +9,12 @@ import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
-import com.example.R
-import com.facebook.CallbackManager
-import com.facebook.FacebookCallback
-import com.facebook.FacebookException
-import com.facebook.login.LoginManager
-import com.facebook.login.LoginResult
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential.Companion.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
 import com.google.firebase.FirebaseNetworkException
 import com.google.firebase.auth.AuthCredential
 import com.google.firebase.auth.EmailAuthProvider
-import com.google.firebase.auth.FacebookAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
@@ -56,7 +49,6 @@ class AuthRepository(
     }
 ) {
     private val credentialManager = CredentialManager.create(context)
-    private val facebookCallbackManager = CallbackManager.Factory.create()
     private val _currentUser = MutableStateFlow<FirebaseUser?>(auth.currentUser)
     val currentUser: StateFlow<FirebaseUser?> = _currentUser.asStateFlow()
 
@@ -72,9 +64,6 @@ class AuthRepository(
     val currentUserId: String?
         get() = auth.currentUser?.uid
 
-    fun handleFacebookActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {
-        return facebookCallbackManager.onActivityResult(requestCode, resultCode, data)
-    }
 
     // --- Email & Password Sign Up ---
     suspend fun signUpWithEmail(
@@ -214,76 +203,7 @@ class AuthRepository(
         }
     }
 
-    fun isFacebookConfigured(): Boolean {
-        val resId = context.resources.getIdentifier("facebook_app_id", "string", context.packageName)
-        if (resId == 0) return false
-        val appId = context.getString(resId)
-        return appId.isNotBlank() && appId != "123456789012345" && appId.length >= 8 && appId.all { it.isDigit() }
-    }
 
-    // --- Facebook Login ---
-    suspend fun signInWithFacebook(activity: Activity): Result<FirebaseUser> =
-        suspendCancellableCoroutine { continuation ->
-            if (!isFacebookConfigured()) {
-                continuation.resume(
-                    Result.failure(
-                        Exception("Facebook Login requires a valid Facebook App ID. Please configure your App ID in strings.xml.")
-                    )
-                )
-                return@suspendCancellableCoroutine
-            }
-
-            try {
-                com.facebook.FacebookSdk.sdkInitialize(activity.applicationContext)
-            } catch (e: Throwable) {
-                Log.w(TAG, "Facebook SDK init error: ${e.message}")
-            }
-
-            val loginManager = LoginManager.getInstance()
-
-            loginManager.registerCallback(
-                facebookCallbackManager,
-                object : FacebookCallback<LoginResult> {
-                    override fun onSuccess(result: LoginResult) {
-                        val token = result.accessToken.token
-                        val authCredential = FacebookAuthProvider.getCredential(token)
-
-                        CoroutineScope(Dispatchers.IO).launch {
-                            try {
-                                val authResult = auth.signInWithCredential(authCredential).await()
-                                val user = authResult.user
-                                if (user != null) {
-                                    _currentUser.value = user
-                                    linkPendingCredentialIfAny(user)
-                                    continuation.resume(Result.success(user))
-                                } else {
-                                    continuation.resume(Result.failure(Exception("Facebook sign-in returned empty user")))
-                                }
-                            } catch (collision: FirebaseAuthUserCollisionException) {
-                                handleCollisionException(collision, authCredential)
-                                continuation.resume(Result.failure(collision))
-                            } catch (e: Exception) {
-                                continuation.resume(Result.failure(e))
-                            }
-                        }
-                    }
-
-                    override fun onCancel() {
-                        continuation.resume(Result.failure(Exception("Facebook sign-in was cancelled")))
-                    }
-
-                    override fun onError(error: FacebookException) {
-                        continuation.resume(Result.failure(error))
-                    }
-                }
-            )
-
-            try {
-                loginManager.logInWithReadPermissions(activity, listOf("public_profile", "email"))
-            } catch (e: Exception) {
-                continuation.resume(Result.failure(e))
-            }
-        }
 
     // --- Account Linking ---
     private fun handleCollisionException(
@@ -355,64 +275,10 @@ class AuthRepository(
         }
     }
 
-    suspend fun reauthenticateWithFacebook(activity: Activity): Result<Unit> =
-        suspendCancellableCoroutine { continuation ->
-            if (!isFacebookConfigured()) {
-                continuation.resume(
-                    Result.failure(
-                        Exception("Facebook Login requires a valid Facebook App ID. Please configure your App ID in strings.xml.")
-                    )
-                )
-                return@suspendCancellableCoroutine
-            }
-            val user = auth.currentUser
-            if (user == null) {
-                continuation.resume(Result.failure(Exception("No user logged in")))
-                return@suspendCancellableCoroutine
-            }
-            try {
-                com.facebook.FacebookSdk.sdkInitialize(activity.applicationContext)
-            } catch (e: Throwable) {
-                Log.w(TAG, "Facebook SDK init error: ${e.message}")
-            }
-            val loginManager = LoginManager.getInstance()
-            loginManager.registerCallback(
-                facebookCallbackManager,
-                object : FacebookCallback<LoginResult> {
-                    override fun onSuccess(result: LoginResult) {
-                        val token = result.accessToken.token
-                        val authCredential = FacebookAuthProvider.getCredential(token)
-                        CoroutineScope(Dispatchers.IO).launch {
-                            try {
-                                user.reauthenticate(authCredential).await()
-                                continuation.resume(Result.success(Unit))
-                            } catch (e: Exception) {
-                                continuation.resume(Result.failure(e))
-                            }
-                        }
-                    }
-
-                    override fun onCancel() {
-                        continuation.resume(Result.failure(Exception("Re-authentication was cancelled")))
-                    }
-
-                    override fun onError(error: FacebookException) {
-                        continuation.resume(Result.failure(error))
-                    }
-                }
-            )
-            loginManager.logInWithReadPermissions(activity, listOf("public_profile", "email"))
-        }
-
     // --- Sign Out ---
     fun signOut(scope: CoroutineScope, onComplete: () -> Unit = {}) {
         auth.signOut()
         _currentUser.value = null
-        try {
-            LoginManager.getInstance().logOut()
-        } catch (e: Exception) {
-            Log.w(TAG, "Facebook logOut failed: ${e.message}")
-        }
         scope.launch(Dispatchers.IO) {
             try {
                 credentialManager.clearCredentialState(ClearCredentialStateRequest())
@@ -430,11 +296,7 @@ class AuthRepository(
             val user = auth.currentUser ?: return Result.failure(Exception("No user logged in"))
             user.delete().await()
             _currentUser.value = null
-            try {
-                LoginManager.getInstance().logOut()
-            } catch (e: Exception) {
-                // Ignore
-            }
+
             try {
                 credentialManager.clearCredentialState(ClearCredentialStateRequest())
             } catch (e: Exception) {
@@ -453,7 +315,6 @@ class AuthRepository(
         for (info in user.providerData) {
             when (info.providerId) {
                 GoogleAuthProvider.PROVIDER_ID -> return "google.com"
-                FacebookAuthProvider.PROVIDER_ID -> return "facebook.com"
                 EmailAuthProvider.PROVIDER_ID -> return "password"
             }
         }
@@ -462,9 +323,9 @@ class AuthRepository(
 
     fun isEmailVerified(): Boolean {
         val user = auth.currentUser ?: return false
-        // Google and Facebook users are automatically treated as verified
+        // Google users are automatically treated as verified
         val isFederated = user.providerData.any {
-            it.providerId == GoogleAuthProvider.PROVIDER_ID || it.providerId == FacebookAuthProvider.PROVIDER_ID
+            it.providerId == GoogleAuthProvider.PROVIDER_ID
         }
         return isFederated || user.isEmailVerified
     }
@@ -505,13 +366,6 @@ class AuthRepository(
                     "Sign-in was cancelled."
                 msg.contains("TOO_MANY_ATTEMPTS_TRY_LATER", ignoreCase = true) || msg.contains("too many", ignoreCase = true) ->
                     "Too many attempts. Please wait a few minutes before trying again."
-                msg.contains("Cannot get application info", ignoreCase = true) ||
-                msg.contains("Error validating application", ignoreCase = true) ||
-                msg.contains("Object with ID", ignoreCase = true) ||
-                msg.contains("Facebook Login requires a valid Facebook App ID", ignoreCase = true) ||
-                msg.contains("GraphMethodException", ignoreCase = true) ||
-                msg.contains("OAuthException", ignoreCase = true) ->
-                    "Facebook Login is not configured yet. Please configure your registered Facebook App ID in strings.xml."
                 msg.contains("EMAIL_EXISTS", ignoreCase = true) ->
                     "An account with this email already exists. Please sign in."
                 msg.contains("OPERATION_NOT_ALLOWED", ignoreCase = true) ->

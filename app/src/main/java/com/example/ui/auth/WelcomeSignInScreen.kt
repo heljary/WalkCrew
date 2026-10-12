@@ -56,7 +56,6 @@ import com.example.ui.theme.LimeAccent
 import com.example.ui.theme.PlusJakartaSansFamily
 import com.example.ui.theme.Spacing
 
-private val FacebookBlue = Color(0xFF1877F2)
 private val DarkButtonText = Color(0xFF181D19)
 
 @Composable
@@ -65,7 +64,10 @@ fun WelcomeSignInScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val activeAuthAction by viewModel.activeAuthAction.collectAsState()
     val isSigningIn by viewModel.isSigningIn.collectAsState()
+    val isGoogleLoading by viewModel.isGoogleLoading.collectAsState()
+    val isAnyAuthLoading = isSigningIn || activeAuthAction != AuthAction.NONE
     val errorMessage by viewModel.errorMessage.collectAsState()
     val collisionDialog by viewModel.collisionDialog.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -174,7 +176,7 @@ fun WelcomeSignInScreen(
 
                 Spacer(modifier = Modifier.height(56.dp))
 
-                // Three Stacked Pill Buttons
+                // Stacked Pill Buttons
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -183,11 +185,11 @@ fun WelcomeSignInScreen(
                     // 1. "Continue with Google" (White surface, dark text, vector Google G)
                     Button(
                         onClick = {
-                            if (!isSigningIn && context is Activity) {
+                            if (!isAnyAuthLoading && context is Activity) {
                                 viewModel.signInWithGoogle(context)
                             }
                         },
-                        enabled = !isSigningIn,
+                        enabled = !isAnyAuthLoading,
                         shape = ButtonShape,
                         elevation = null,
                         colors = ButtonDefaults.buttonColors(
@@ -202,7 +204,7 @@ fun WelcomeSignInScreen(
                             .height(56.dp)
                             .testTag("continue_with_google_button")
                     ) {
-                        if (isSigningIn) {
+                        if (isGoogleLoading) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(24.dp),
                                 color = DarkButtonText,
@@ -231,65 +233,14 @@ fun WelcomeSignInScreen(
                         }
                     }
 
-                    // 2. "Continue with Facebook" (Facebook blue #1877F2, white text)
+                    // 2. "Continue with email" (Lime button)
                     Button(
                         onClick = {
-                            if (!isSigningIn && context is Activity) {
-                                viewModel.signInWithFacebook(context)
-                            }
-                        },
-                        enabled = !isSigningIn,
-                        shape = ButtonShape,
-                        elevation = null,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = FacebookBlue,
-                            contentColor = Color.White,
-                            disabledContainerColor = FacebookBlue.copy(alpha = 0.6f),
-                            disabledContentColor = Color.White.copy(alpha = 0.6f)
-                        ),
-                        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp)
-                            .testTag("continue_with_facebook_button")
-                    ) {
-                        if (isSigningIn) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                color = Color.White,
-                                strokeWidth = 2.5.dp
-                            )
-                        } else {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
-                            ) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.ic_facebook_logo),
-                                    contentDescription = "Facebook Logo",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Text(
-                                    text = "Continue with Facebook",
-                                    fontFamily = PlusJakartaSansFamily,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 16.sp,
-                                    color = Color.White
-                                )
-                            }
-                        }
-                    }
-
-                    // 3. "Continue with email" (Lime button)
-                    Button(
-                        onClick = {
-                            if (!isSigningIn) {
+                            if (!isAnyAuthLoading) {
                                 viewModel.navigateToUnauthScreen(UnauthScreen.SIGN_UP)
                             }
                         },
-                        enabled = !isSigningIn,
+                        enabled = !isAnyAuthLoading,
                         shape = ButtonShape,
                         elevation = null,
                         colors = ButtonDefaults.buttonColors(
@@ -333,7 +284,7 @@ fun WelcomeSignInScreen(
                         fontWeight = FontWeight.Bold,
                         color = LimeAccent,
                         modifier = Modifier
-                            .clickable {
+                            .clickable(enabled = !isAnyAuthLoading) {
                                 viewModel.navigateToUnauthScreen(UnauthScreen.SIGN_IN)
                             }
                             .testTag("welcome_to_sign_in_link")

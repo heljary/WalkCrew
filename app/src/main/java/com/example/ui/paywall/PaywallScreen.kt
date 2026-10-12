@@ -111,24 +111,39 @@ private val Benefits = listOf(
 fun PaywallScreen(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
-    triggerReason: String? = null // e.g. "You've reached the free limit of 2 crews."
+    triggerReason: String? = null, // e.g. "You've reached the free limit of 2 crews."
+    viewModel: PaywallViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
     val context = LocalContext.current
     val activity = context as? Activity
-    val revenueCatManager = remember { RevenueCatManager.getInstance(context) }
 
-    val isPremium by revenueCatManager.isPremium.collectAsState()
-    val monthlyPkg by revenueCatManager.monthlyPackage.collectAsState()
-    val yearlyPkg by revenueCatManager.yearlyPackage.collectAsState()
-    val isLoading by revenueCatManager.isLoading.collectAsState()
-    val actionMessage by revenueCatManager.actionMessage.collectAsState()
-
-    var selectedPlan by remember { mutableStateOf(SubscriptionPlan.YEARLY) }
+    val isPremium by viewModel.isPremium.collectAsState()
+    val isOfferingsLoading by viewModel.isOfferingsLoading.collectAsState()
+    val monthlyPkg by viewModel.monthlyPackage.collectAsState()
+    val yearlyPkg by viewModel.yearlyPackage.collectAsState()
+    val selectedPlan by viewModel.selectedPlan.collectAsState()
+    val isPurchasing by viewModel.isPurchasing.collectAsState()
+    val actionMessage by viewModel.actionMessage.collectAsState()
 
     val monthlyPrice = monthlyPkg?.product?.price?.formatted ?: "$3.99"
     val yearlyPrice = yearlyPkg?.product?.price?.formatted ?: "$29.99"
 
-    // If purchase completed or restored while on paywall, close after short delay or prompt
+    val yearlySubtext = yearlyPkg?.product?.price?.let { priceObj ->
+        val micros = priceObj.amountMicros
+        if (micros > 0) {
+            val monthlyAmount = (micros / 1_000_000.0) / 12.0
+            val currencySymbol = priceObj.formatted.replace(Regex("[0-9.,\\s]"), "")
+            if (currencySymbol.isNotEmpty()) {
+                String.format(java.util.Locale.US, "%s%.2f / month", currencySymbol, monthlyAmount)
+            } else {
+                String.format(java.util.Locale.US, "$%.2f / month", monthlyAmount)
+            }
+        } else {
+            "$2.50 / month"
+        }
+    } ?: "$2.50 / month"
+
+    // If purchase completed or restored while on paywall, close after entitlement unlocked
     if (isPremium) {
         onDismiss()
         return
@@ -246,34 +261,67 @@ fun PaywallScreen(
 
             Spacer(modifier = Modifier.height(28.dp))
 
-            // Two Plan Cards Side by Side: Monthly $3.99 and Yearly $29.99 with "Best value" badge
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                // Monthly Plan Card
-                PlanCard(
-                    title = "Monthly",
-                    price = monthlyPrice,
-                    subtext = "Billed monthly",
-                    isSelected = selectedPlan == SubscriptionPlan.MONTHLY,
-                    badgeText = null,
-                    onClick = { selectedPlan = SubscriptionPlan.MONTHLY },
-                    modifier = Modifier.weight(1f),
-                    testTag = "plan_monthly_card"
-                )
+            // Plans section: show loading indicator when fetching offerings from Test Store
+            if (isOfferingsLoading && monthlyPkg == null && yearlyPkg == null) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, Color(0xFF1E4D3B), CardShape),
+                    shape = CardShape,
+                    color = Color(0xFF13382A).copy(alpha = 0.85f)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator(
+                            color = LimeAccent,
+                            strokeWidth = 2.5.dp,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Text(
+                            text = "Loading subscription options...",
+                            fontFamily = PlusJakartaSansFamily,
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 14.sp,
+                            color = Color.White
+                        )
+                    }
+                }
+            } else {
+                // Two Plan Cards Side by Side: Monthly and Yearly with "Best value" badge
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    // Monthly Plan Card
+                    PlanCard(
+                        title = "Monthly",
+                        price = monthlyPrice,
+                        subtext = "Billed monthly",
+                        isSelected = selectedPlan == SubscriptionPlan.MONTHLY,
+                        badgeText = null,
+                        onClick = { viewModel.selectPlan(SubscriptionPlan.MONTHLY) },
+                        modifier = Modifier.weight(1f),
+                        testTag = "plan_monthly_card"
+                    )
 
-                // Yearly Plan Card (with Best Value badge)
-                PlanCard(
-                    title = "Yearly",
-                    price = yearlyPrice,
-                    subtext = "$2.50 / month",
-                    isSelected = selectedPlan == SubscriptionPlan.YEARLY,
-                    badgeText = "Best value",
-                    onClick = { selectedPlan = SubscriptionPlan.YEARLY },
-                    modifier = Modifier.weight(1f),
-                    testTag = "plan_yearly_card"
-                )
+                    // Yearly Plan Card (with Best Value badge)
+                    PlanCard(
+                        title = "Yearly",
+                        price = yearlyPrice,
+                        subtext = yearlySubtext,
+                        isSelected = selectedPlan == SubscriptionPlan.YEARLY,
+                        badgeText = "Best value",
+                        onClick = { viewModel.selectPlan(SubscriptionPlan.YEARLY) },
+                        modifier = Modifier.weight(1f),
+                        testTag = "plan_yearly_card"
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -291,20 +339,17 @@ fun PaywallScreen(
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            // Big lime pill button "Start free trial"
+            // Big lime pill button "Start free trial / Continue"
             Button(
                 onClick = {
                     if (activity != null) {
-                        val pkgToBuy: Package? = if (selectedPlan == SubscriptionPlan.YEARLY) yearlyPkg else monthlyPkg
-                        revenueCatManager.purchase(
+                        viewModel.purchase(
                             activity = activity,
-                            pkg = pkgToBuy,
-                            planTypeFallback = if (selectedPlan == SubscriptionPlan.YEARLY) "yearly" else "monthly",
                             onSuccess = { onDismiss() }
                         )
                     }
                 },
-                enabled = !isLoading,
+                enabled = !isPurchasing && !isOfferingsLoading,
                 shape = ButtonShape,
                 elevation = null,
                 colors = ButtonDefaults.buttonColors(
@@ -318,7 +363,7 @@ fun PaywallScreen(
                     .height(58.dp)
                     .testTag("start_free_trial_button")
             ) {
-                if (isLoading) {
+                if (isPurchasing || isOfferingsLoading) {
                     CircularProgressIndicator(
                         color = DeepForest,
                         strokeWidth = 2.5.dp,
@@ -326,7 +371,7 @@ fun PaywallScreen(
                     )
                 } else {
                     Text(
-                        text = "Start free trial",
+                        text = "Start free trial / Continue",
                         fontFamily = PlusJakartaSansFamily,
                         fontWeight = FontWeight.Bold,
                         fontSize = 17.sp,
@@ -352,7 +397,7 @@ fun PaywallScreen(
             // Restore purchases button
             TextButton(
                 onClick = {
-                    revenueCatManager.restorePurchases(
+                    viewModel.restorePurchases(
                         onSuccess = { active ->
                             if (active) onDismiss()
                         }

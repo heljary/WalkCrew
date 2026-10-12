@@ -38,6 +38,8 @@ import com.example.ui.util.FontScalePreviews
 import com.example.ui.util.ThemePreviews
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Group
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.SubcomposeAsyncImage
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.Button
@@ -299,6 +301,7 @@ fun SectionHeader(
 fun Avatar(
     initials: String,
     modifier: Modifier = Modifier,
+    photoUrl: String? = null,
     colorIndex: Int = 0,
     size: Dp = 48.dp,
     onClick: (() -> Unit)? = null,
@@ -330,16 +333,46 @@ fun Avatar(
             .semantics { contentDescription = "Avatar $initials" },
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = initials.take(2).uppercase(Locale.getDefault()),
-            color = textColor,
-            style = if (size < 40.dp) {
-                MaterialTheme.typography.labelSmall
-            } else {
-                MaterialTheme.typography.titleSmall
-            },
-            fontWeight = FontWeight.Bold
-        )
+        if (!photoUrl.isNullOrBlank()) {
+            SubcomposeAsyncImage(
+                model = photoUrl,
+                contentDescription = "Avatar photo $initials",
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(CircleShape),
+                contentScale = ContentScale.Crop,
+                error = {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(bgColor),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = initials.take(2).uppercase(Locale.getDefault()),
+                            color = textColor,
+                            style = if (size < 40.dp) {
+                                MaterialTheme.typography.labelSmall
+                            } else {
+                                MaterialTheme.typography.titleSmall
+                            },
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            )
+        } else {
+            Text(
+                text = initials.take(2).uppercase(Locale.getDefault()),
+                color = textColor,
+                style = if (size < 40.dp) {
+                    MaterialTheme.typography.labelSmall
+                } else {
+                    MaterialTheme.typography.titleSmall
+                },
+                fontWeight = FontWeight.Bold
+            )
+        }
     }
 }
 

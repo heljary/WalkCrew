@@ -69,7 +69,6 @@ import com.example.ui.theme.LimeAccent
 import com.example.ui.theme.PlusJakartaSansFamily
 import com.example.ui.theme.Spacing
 
-private val FacebookBlue = Color(0xFF1877F2)
 private val DarkButtonText = Color(0xFF181D19)
 
 @Composable
@@ -299,7 +298,7 @@ fun SignInScreen(
 
             Spacer(modifier = Modifier.height(28.dp))
 
-            // Social Logins (Google & Facebook)
+            // Social Login (Google)
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -339,45 +338,6 @@ fun SignInScreen(
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp,
                             color = DarkButtonText
-                        )
-                    }
-                }
-
-                // Continue with Facebook
-                Button(
-                    onClick = {
-                        if (!isSigningIn && context is Activity) {
-                            viewModel.signInWithFacebook(context)
-                        }
-                    },
-                    enabled = !isSigningIn,
-                    shape = ButtonShape,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = FacebookBlue,
-                        contentColor = Color.White
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp)
-                        .testTag("sign_in_facebook_button")
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_facebook_logo),
-                            contentDescription = "Facebook Logo",
-                            tint = Color.White,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(
-                            text = "Continue with Facebook",
-                            fontFamily = PlusJakartaSansFamily,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp,
-                            color = Color.White
                         )
                     }
                 }
