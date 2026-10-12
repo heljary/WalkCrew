@@ -56,9 +56,7 @@ class CrewRepository(private val context: Context) {
     private val stepLogDao = database.stepLogDao()
 
     val db: FirebaseFirestore by lazy {
-        com.example.data.FirebaseInitializer.ensureInitialized(context)
-        val dbId = context.getString(R.string.firestore_database_id)
-        FirebaseFirestore.getInstance(dbId)
+        com.example.data.FirebaseInitializer.getFirestore()
     }
 
     /**

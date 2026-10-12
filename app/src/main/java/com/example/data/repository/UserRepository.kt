@@ -28,9 +28,7 @@ class UserRepository(private val context: Context) {
     private val userProfileDao = database.userProfileDao()
 
     val db: FirebaseFirestore by lazy {
-        com.example.data.FirebaseInitializer.ensureInitialized(context)
-        val dbId = context.getString(R.string.firestore_database_id)
-        FirebaseFirestore.getInstance(dbId)
+        com.example.data.FirebaseInitializer.getFirestore()
     }
 
     fun observeUserProfile(userId: String): Flow<UserProfile?> {

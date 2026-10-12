@@ -4,9 +4,15 @@ import android.content.Context
 import android.util.Log
 import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
+import com.google.firebase.firestore.FirebaseFirestore
 
 object FirebaseInitializer {
     private const val TAG = "FirebaseInitializer"
+    const val FIRESTORE_DATABASE_ID = "ai-studio-android-walkcrew-f78bcbe3-d4e3-4ce3-b319-6ae08a7aead2"
+
+    fun getFirestore(): FirebaseFirestore {
+        return FirebaseFirestore.getInstance(FIRESTORE_DATABASE_ID)
+    }
 
     fun ensureInitialized(context: Context): FirebaseApp {
         val appContext = context.applicationContext ?: context
@@ -46,7 +52,7 @@ object FirebaseInitializer {
         Log.d("WalkCrew", "API Key (suffix): ...${options.apiKey.takeLast(4)}")
         
         // Connectivity check
-        com.google.firebase.firestore.FirebaseFirestore.getInstance().run {
+        getFirestore().run {
             this.addSnapshotsInSyncListener {
                 Log.d("WalkCrew", "Firestore network connection available: ${!this.app.isDataCollectionDefaultEnabled}")
                 // Note: accurate connection status is harder via SDK, but logging info helps

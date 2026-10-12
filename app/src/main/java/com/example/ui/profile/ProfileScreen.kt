@@ -745,6 +745,11 @@ fun ProfileScreen(
                         color = WalkCrewTheme.extendedColors.textSecondary
                     )
                     Text(
+                        text = "Database ID: ${com.example.data.FirebaseInitializer.FIRESTORE_DATABASE_ID}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = WalkCrewTheme.extendedColors.textSecondary
+                    )
+                    Text(
                         text = "App ID: ${com.google.firebase.FirebaseApp.getInstance().options.applicationId}",
                         style = MaterialTheme.typography.bodySmall,
                         color = WalkCrewTheme.extendedColors.textSecondary
@@ -782,7 +787,7 @@ fun ProfileScreen(
                             val uid = authViewModel?.currentUserId
                             if (uid != null) {
                                 isTestingFirestore = true
-                                val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                                val db = com.example.data.FirebaseInitializer.getFirestore()
                                 val testRef = db.collection("users").document(uid).collection("debug").document("ping")
                                 testRef.set(mapOf("ping" to true, "timestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp()))
                                     .addOnSuccessListener {
