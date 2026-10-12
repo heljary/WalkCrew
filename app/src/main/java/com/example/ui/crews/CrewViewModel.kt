@@ -82,6 +82,14 @@ class CrewViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         loadUserCrews()
+        runMigration()
+    }
+
+    private fun runMigration() {
+        val uid = currentUserId ?: return
+        viewModelScope.launch {
+            crewRepository.migrateOwnedCrewsToInviteCodes(uid)
+        }
     }
 
     fun loadUserCrews() {
@@ -272,9 +280,16 @@ class CrewViewModel(application: Application) : AndroidViewModel(application) {
             result.onSuccess { crew ->
                 _showJoinSheet.value = false
                 onJoined(crew)
+                // Successful join will trigger the observeUserCrews flow automatically,
+                // but we call loadUserCrews to be sure local state is fresh.
                 loadUserCrews()
             }.onFailure { e ->
-                _errorMessage.value = e.localizedMessage ?: "Could not find crew with code $code"
+                val msg = e.localizedMessage ?: "Could not join crew with code $code"
+                if (msg.contains("PERMISSION_DENIED", ignoreCase = true)) {
+                    _errorMessage.value = "Permission denied, check Firestore rules. Ensure you are signed in."
+                } else {
+                    _errorMessage.value = msg
+                }
             }
         }
     }

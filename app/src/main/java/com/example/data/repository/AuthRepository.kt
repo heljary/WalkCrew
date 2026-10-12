@@ -9,6 +9,7 @@ import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential.Companion.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
@@ -155,6 +156,46 @@ class AuthRepository(
         }
     }
 
+    // --- Google Silent Sign-In ---
+    suspend fun silentSignInWithGoogle(): Result<FirebaseUser> {
+        return try {
+            val resId = context.resources.getIdentifier("default_web_client_id", "string", context.packageName)
+            val clientId = if (resId != 0) context.getString(resId) else "918401212822-ddsh75mov5hdcl7a0ctf3j4f4nr2rcqg.apps.googleusercontent.com"
+            
+            // Rule 10: Use GetGoogleIdOption for silent sign-in in a separate request
+            val googleIdOption = GetGoogleIdOption.Builder()
+                .setFilterByAuthorizedAccounts(true)
+                .setServerClientId(clientId)
+                .build()
+
+            val request = GetCredentialRequest.Builder()
+                .addCredentialOption(googleIdOption)
+                .build()
+
+            val result = credentialManager.getCredential(context, request)
+            val credential = result.credential
+
+            if (credential is CustomCredential && credential.type == TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+                val googleIdToken = GoogleIdTokenCredential.createFrom(credential.data).idToken
+                val authCredential = GoogleAuthProvider.getCredential(googleIdToken, null)
+                val authResult = auth.signInWithCredential(authCredential).await()
+                val user = authResult.user
+                if (user != null) {
+                    _currentUser.value = user
+                    linkPendingCredentialIfAny(user)
+                    Result.success(user)
+                } else {
+                    Result.failure(Exception("Failed to obtain user profile"))
+                }
+            } else {
+                Result.failure(Exception("No authorized account found"))
+            }
+        } catch (e: Exception) {
+            // Silent sign-in failures are common (e.g. no authorized accounts), just return failure
+            Result.failure(e)
+        }
+    }
+
     // --- Google Sign-In ---
     suspend fun signInWithGoogle(activity: Activity): Result<FirebaseUser> {
         return try {
@@ -162,7 +203,7 @@ class AuthRepository(
             val clientId = if (resId != 0) {
                 context.getString(resId)
             } else {
-                "walkcrew-client-id.apps.googleusercontent.com"
+                "918401212822-ddsh75mov5hdcl7a0ctf3j4f4nr2rcqg.apps.googleusercontent.com"
             }
             val signInOption = GetSignInWithGoogleOption.Builder(serverClientId = clientId).build()
             val request = GetCredentialRequest.Builder()
@@ -252,7 +293,7 @@ class AuthRepository(
         return try {
             val user = auth.currentUser ?: return Result.failure(Exception("No user logged in"))
             val resId = context.resources.getIdentifier("default_web_client_id", "string", context.packageName)
-            val clientId = if (resId != 0) context.getString(resId) else "walkcrew-client-id.apps.googleusercontent.com"
+            val clientId = if (resId != 0) context.getString(resId) else "918401212822-ddsh75mov5hdcl7a0ctf3j4f4nr2rcqg.apps.googleusercontent.com"
             val signInOption = GetSignInWithGoogleOption.Builder(serverClientId = clientId).build()
             val request = GetCredentialRequest.Builder()
                 .addCredentialOption(signInOption)
@@ -369,7 +410,7 @@ class AuthRepository(
                 msg.contains("EMAIL_EXISTS", ignoreCase = true) ->
                     "An account with this email already exists. Please sign in."
                 msg.contains("OPERATION_NOT_ALLOWED", ignoreCase = true) ->
-                    "This sign-in method is currently disabled. Please contact support."
+                    "Email/Password sign-in is disabled. Please enable it in the Firebase Console under Authentication > Sign-in method."
                 msg.contains("USER_DISABLED", ignoreCase = true) ->
                     "This account has been disabled. Please contact support."
                 else ->

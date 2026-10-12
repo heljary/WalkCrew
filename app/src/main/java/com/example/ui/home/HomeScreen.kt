@@ -161,6 +161,7 @@ fun HomeScreen(
                     avatarColorIndex = avatarColorIndex,
                     photoUrl = userProfile?.photoUrl,
                     onRefresh = { viewModel.refreshSteps() },
+                    onAddTestSteps = { viewModel.addSimulatedSteps(1000L) },
                     onProfile = onNavigateToProfile
                 )
             }
@@ -289,6 +290,7 @@ private fun GreetingRow(
     avatarColorIndex: Int,
     photoUrl: String? = null,
     onRefresh: () -> Unit,
+    onAddTestSteps: () -> Unit = {},
     onProfile: () -> Unit
 ) {
     Row(
@@ -314,6 +316,14 @@ private fun GreetingRow(
         }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
+            if (com.example.BuildConfig.DEBUG) {
+                SecondaryButton(
+                    text = "+1,000",
+                    onClick = onAddTestSteps,
+                    modifier = Modifier.height(36.dp).padding(end = 8.dp),
+                    testTag = "debug_add_steps_button"
+                )
+            }
             IconButton(
                 onClick = onRefresh,
                 modifier = Modifier

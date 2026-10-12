@@ -101,7 +101,15 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     fun checkCurrentUser() {
         val user = authRepository.auth.currentUser
         if (user == null) {
-            _uiState.value = AuthUiState.Unauthenticated
+            // Attempt silent sign-in for returning Google users
+            viewModelScope.launch {
+                val silentResult = authRepository.silentSignInWithGoogle()
+                if (silentResult.isSuccess) {
+                    loadUserProfile(silentResult.getOrThrow())
+                } else {
+                    _uiState.value = AuthUiState.Unauthenticated
+                }
+            }
         } else {
             // Check if user requires email verification (email/password only)
             if (!authRepository.isEmailVerified()) {

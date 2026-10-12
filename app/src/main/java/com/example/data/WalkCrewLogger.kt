@@ -23,7 +23,17 @@ object WalkCrewLogger {
     }
 
     fun logError(operation: String, error: Throwable) {
+        // Ignore normal job cancellations
+        if (error is kotlinx.coroutines.CancellationException) return
+
         val msg = error.message ?: "Unknown error"
+        
+        // Handle offline state gracefully without full stack trace
+        if (msg.contains("offline", ignoreCase = true)) {
+            Log.w(TAG, "Firestore $operation postponed: client is offline.")
+            return
+        }
+
         lastFirestoreError = "[$operation] $msg"
         if (msg.contains("PERMISSION_DENIED", ignoreCase = true) ||
             msg.contains("permission-denied", ignoreCase = true) ||

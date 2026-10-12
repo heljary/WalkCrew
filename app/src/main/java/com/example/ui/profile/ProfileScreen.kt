@@ -138,6 +138,8 @@ fun ProfileScreen(
     var debugTapCount by remember { mutableStateOf(0) }
     var deleteAccountPassword by remember { mutableStateOf("") }
     var tempName by remember { mutableStateOf(userName) }
+    var testFirestoreResult by remember { mutableStateOf<String?>(null) }
+    var isTestingFirestore by remember { mutableStateOf(false) }
 
     val userStats by viewModel.userStats.collectAsState()
     val crewRepository = remember { com.example.data.repository.CrewRepository.getInstance(context) }
@@ -738,40 +740,82 @@ fun ProfileScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
+                        text = "Project ID: ${com.google.firebase.FirebaseApp.getInstance().options.projectId}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = WalkCrewTheme.extendedColors.textSecondary
+                    )
+                    Text(
+                        text = "App ID: ${com.google.firebase.FirebaseApp.getInstance().options.applicationId}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = WalkCrewTheme.extendedColors.textSecondary
+                    )
+                    Text(
+                        text = "API Key: ...${com.google.firebase.FirebaseApp.getInstance().options.apiKey.takeLast(4)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = WalkCrewTheme.extendedColors.textSecondary
+                    )
+                    Text(
                         text = "User ID: ${authViewModel?.currentUserId ?: "None"}",
                         style = MaterialTheme.typography.bodySmall,
                         color = WalkCrewTheme.extendedColors.textSecondary
                     )
                     Text(
-                        text = "Email: ${authViewModel?.currentUserEmail ?: "None"}",
+                        text = "Crews Joined: " + androidx.compose.ui.res.pluralStringResource(
+                            com.example.R.plurals.crews_count,
+                            userCrews.size,
+                            userCrews.size
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = WalkCrewTheme.extendedColors.textSecondary
                     )
                     Text(
-                        text = "Email Verified: ${authViewModel?.isEmailVerified ?: false}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = WalkCrewTheme.extendedColors.textSecondary
-                    )
-                    Text(
-                        text = "Health Connect: ${healthState.javaClass.simpleName} (Steps: ${userStats.steps})",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = WalkCrewTheme.extendedColors.textSecondary
-                    )
-                    Text(
-                        text = "Crews Joined: ${userCrews.size}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = WalkCrewTheme.extendedColors.textSecondary
-                    )
-                    Text(
-                        text = "Worker URL: https://walkcrew-verify.eljaryhamza850.workers.dev",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = WalkCrewTheme.extendedColors.textSecondary
-                    )
-                    Text(
-                        text = "Last Firestore Error: ${com.example.data.WalkCrewLogger.lastFirestoreError ?: "None (All healthy)"}",
+                        text = "Last Log Error: ${com.example.data.WalkCrewLogger.lastFirestoreError ?: "None (All healthy)"}",
                         style = MaterialTheme.typography.bodySmall,
                         color = if (com.example.data.WalkCrewLogger.lastFirestoreError != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
                     )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    PrimaryButton(
+                        text = if (isTestingFirestore) "Testing..." else "Test Firestore",
+                        onClick = {
+                            val uid = authViewModel?.currentUserId
+                            if (uid != null) {
+                                isTestingFirestore = true
+                                val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                                val testRef = db.collection("users").document(uid).collection("debug").document("ping")
+                                testRef.set(mapOf("ping" to true, "timestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp()))
+                                    .addOnSuccessListener {
+                                        testRef.get().addOnSuccessListener { doc ->
+                                            testFirestoreResult = "Ping success! Write & Read OK."
+                                            isTestingFirestore = false
+                                        }.addOnFailureListener { e ->
+                                            testFirestoreResult = "Read failed: ${e.message}"
+                                            isTestingFirestore = false
+                                        }
+                                    }
+                                    .addOnFailureListener { e ->
+                                        testFirestoreResult = "Write failed: ${e.message}"
+                                        isTestingFirestore = false
+                                    }
+                            } else {
+                                testFirestoreResult = "Error: Not signed in"
+                            }
+                        },
+                        enabled = !isTestingFirestore,
+                        modifier = Modifier.fillMaxWidth(),
+                        testTag = "test_firestore_btn"
+                    )
+
+                    if (testFirestoreResult != null) {
+                        Text(
+                            text = testFirestoreResult!!,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold,
+                            color = if (testFirestoreResult!!.contains("success")) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
                 }
             },
             confirmButton = {

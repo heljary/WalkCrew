@@ -1,3 +1,21 @@
 <resources>
     <string name="app_name">WalkCrew</string>
+
+    <plurals name="walkers_count">
+        <item quantity="one">1 walker</item>
+        <item quantity="other">%d walkers</item>
+    </plurals>
+    <plurals name="crews_count">
+        <item quantity="one">1 crew</item>
+        <item quantity="other">%d crews</item>
+    </plurals>
+    <plurals name="friends_count">
+        <item quantity="one">1 friend</item>
+        <item quantity="other">%d friends</item>
+    </plurals>
+
+    <string name="debug_title">🛠️ WalkCrew Debug Info</string>
+    <string name="debug_test_firestore">Test Firestore</string>
+    <string name="debug_ping_success">Ping success! Write &amp; Read OK.</string>
+    <string name="debug_ping_error">Ping failed: %s</string>
 </resources>

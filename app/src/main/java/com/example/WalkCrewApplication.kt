@@ -22,14 +22,21 @@ class WalkCrewApplication : Application() {
 
 
 
-        // Initialize RevenueCat only when a valid Google Play public API key ('goog_...') is provided
+        // Initialize RevenueCat only when a valid Google Play/Amazon public API key ('goog_...' or 'amzn_...') is provided.
+        // If missing, placeholder, or invalid, do not initialize and treat all users as free tier.
         val apiKey = try {
-            BuildConfig.REVENUECAT_API_KEY
+            BuildConfig.REVENUECAT_API_KEY.trim()
         } catch (e: Throwable) {
             ""
         }
 
-        if (apiKey.isNotBlank() && apiKey.startsWith("goog_")) {
+        val isValidKey = apiKey.isNotBlank() &&
+            apiKey != "placeholder_api_key" &&
+            apiKey != "12345" &&
+            !apiKey.contains("REVENUECAT_API_KEY") &&
+            (apiKey.startsWith("goog_") || apiKey.startsWith("amzn_"))
+
+        if (isValidKey) {
             try {
                 Purchases.logLevel = if (BuildConfig.DEBUG) LogLevel.DEBUG else LogLevel.INFO
                 Purchases.configure(
@@ -37,12 +44,12 @@ class WalkCrewApplication : Application() {
                         .build()
                 )
                 RevenueCatManager.getInstance(this).setupAfterConfigure()
-                Log.i("WalkCrewApp", "RevenueCat initialized with provided Google Play API key")
+                Log.i("WalkCrewApp", "RevenueCat initialized with provided public API key")
             } catch (e: Exception) {
                 Log.e("WalkCrewApp", "RevenueCat initialization failed: ${e.message}")
             }
         } else {
-            Log.i("WalkCrewApp", "REVENUECAT_API_KEY is not configured with a valid Google Play key ('goog_...'). Treating all users as free tier.")
+            Log.i("WalkCrewApp", "REVENUECAT_API_KEY is missing or not a valid public key ('goog_...' / 'amzn_...'). RevenueCat disabled; treating all users as free.")
         }
     }
 }

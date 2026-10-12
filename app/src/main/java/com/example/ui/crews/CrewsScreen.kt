@@ -204,12 +204,13 @@ fun CrewsScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = activeCrew?.crew?.name?.ifBlank { "Crew" } ?: "Crew",
+                                text = activeCrew?.crew?.name?.ifBlank { "Your Crews" } ?: "Your Crews",
                                 style = MaterialTheme.typography.headlineMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = WalkCrewTheme.extendedColors.textPrimary,
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                overflow = TextOverflow.Ellipsis,
+                                textAlign = TextAlign.Start
                             )
                             Text(
                                 text = "Friends' daily steps & group progress",
@@ -363,7 +364,7 @@ fun CrewsScreen(
                                         .padding(horizontal = 8.dp, vertical = 3.dp)
                                 ) {
                                     Text(
-                                        text = "${friendsProgress.size} active",
+                                        text = "${androidx.compose.ui.res.pluralStringResource(com.example.R.plurals.walkers_count, friendsProgress.size, friendsProgress.size)} active",
                                         fontFamily = PlusJakartaSansFamily,
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
@@ -612,7 +613,7 @@ fun CrewOverviewHeroCard(
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        text = "${PluralUtils.friends(memberCount)} walking together • $duration",
+                        text = "${androidx.compose.ui.res.pluralStringResource(com.example.R.plurals.friends_count, memberCount, memberCount)} walking together • $duration",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color(0xFFBAC7BF),
                         maxLines = 1,
@@ -1040,28 +1041,8 @@ fun FriendDailyProgressCard(
                         }
                     }
                 } else {
-                    // Current user: display any received cheers from teammates as read-only badges
-                    val activeReactions = reactions.filter { it.value > 0 }
-                    if (activeReactions.isNotEmpty()) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            activeReactions.forEach { (emoji, count) ->
-                                Box(
-                                    modifier = Modifier
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                                ) {
-                                    Text(
-                                        text = "$emoji $count",
-                                        fontSize = 12.sp
-                                    )
-                                }
-                            }
-                        }
-                    }
+                    // Hide reaction buttons and chips on current user's own row as per requirement
+                    // Previously this displayed received cheers, but now hidden to follow "Reactions only appear on other members' rows"
                 }
             }
         }
@@ -1221,7 +1202,7 @@ fun CrewCard(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "${PluralUtils.walkers(memberCount)} • ${crew.duration}",
+                    text = "${androidx.compose.ui.res.pluralStringResource(com.example.R.plurals.walkers_count, memberCount, memberCount)} • ${crew.duration}",
                     style = MaterialTheme.typography.bodySmall,
                     color = WalkCrewTheme.extendedColors.textSecondary,
                     maxLines = 1,
@@ -1323,7 +1304,7 @@ fun CreateCrewBottomSheet(
                     .padding(bottom = 36.dp)
             ) {
                 Text(
-                    text = "Create a Crew",
+                    text = "Create Crew",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = WalkCrewTheme.extendedColors.textPrimary

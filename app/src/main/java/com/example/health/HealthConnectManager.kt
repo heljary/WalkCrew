@@ -68,6 +68,9 @@ class HealthConnectManager(private val context: Context) {
                 )
             )
             response[StepsRecord.COUNT_TOTAL] ?: 0L
+        } catch (e: SecurityException) {
+            Log.e(TAG, "Permission denied reading today's steps (likely background access): ${e.message}")
+            0L
         } catch (e: Exception) {
             Log.e(TAG, "Error reading today's steps: ${e.message}")
             0L
@@ -96,6 +99,9 @@ class HealthConnectManager(private val context: Context) {
                     )
                 )
                 response[StepsRecord.COUNT_TOTAL] ?: 0L
+            } catch (e: SecurityException) {
+                Log.e(TAG, "Permission denied reading steps for $date (likely background access): ${e.message}")
+                0L
             } catch (e: Exception) {
                 Log.e(TAG, "Error reading steps for $date: ${e.message}")
                 0L

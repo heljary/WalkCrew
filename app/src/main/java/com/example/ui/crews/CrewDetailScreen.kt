@@ -204,7 +204,8 @@ fun CrewDetailScreen(
                             fontWeight = FontWeight.Bold,
                             color = WalkCrewTheme.extendedColors.textPrimary,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
+                            textAlign = TextAlign.Start
                         )
                     }
 
@@ -831,7 +832,7 @@ private fun LeaderboardRow(
             )
             .combinedClickable(
                 onClick = {},
-                onLongClick = onLongPress
+                onLongClick = if (isCurrentUser) null else onLongPress
             )
             .testTag("leaderboard_row_${member.userId}"),
         shadowElevation = 0.dp
@@ -929,9 +930,9 @@ private fun LeaderboardRow(
                 trackColor = MaterialTheme.colorScheme.surfaceVariant
             )
 
-            // Reactions chips under the row
+            // Reactions chips under the row (hidden for current user as per requirement)
             val activeReactions = reactions.filter { it.value > 0 }
-            if (activeReactions.isNotEmpty()) {
+            if (!isCurrentUser && activeReactions.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),

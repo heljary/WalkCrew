@@ -11,9 +11,21 @@ import com.google.firebase.firestore.snapshots
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.tasks.await
+import com.example.data.local.AppDatabase
+import com.example.data.local.toLocal
+import com.example.data.local.toModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 class UserRepository(private val context: Context) {
+
+    private val repositoryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val database = AppDatabase.getDatabase(context)
+    private val userProfileDao = database.userProfileDao()
 
     val db: FirebaseFirestore by lazy {
         com.example.data.FirebaseInitializer.ensureInitialized(context)
@@ -22,27 +34,53 @@ class UserRepository(private val context: Context) {
     }
 
     fun observeUserProfile(userId: String): Flow<UserProfile?> {
-        com.example.data.WalkCrewLogger.logRead("users", userId, "observing user profile")
-        return db.collection("users").document(userId)
-            .snapshots()
-            .map { snapshot ->
-                if (snapshot.exists()) {
-                    snapshot.toObject(UserProfile::class.java)
-                } else {
-                    null
-                }
+        com.example.data.WalkCrewLogger.logRead("users", userId, "observing user profile (offline-first)")
+        
+        // 1. Start Firestore listener to update Room
+        repositoryScope.launch {
+            try {
+                db.collection("users").document(userId)
+                    .snapshots()
+                    .collect { snapshot ->
+                        if (snapshot.exists()) {
+                            snapshot.toObject(UserProfile::class.java)?.let {
+                                userProfileDao.insertProfile(it.toLocal())
+                            }
+                        }
+                    }
+            } catch (e: Exception) {
+                com.example.data.WalkCrewLogger.logError("observeUserProfile.sync($userId)", e)
             }
+        }
+
+        // 2. Return reactive Flow from Room
+        return userProfileDao.getProfile(userId).map { it?.toModel() }
             .catch { error ->
-                com.example.data.WalkCrewLogger.logError("observeUserProfile($userId)", error)
+                com.example.data.WalkCrewLogger.logError("observeUserProfile.local($userId)", error)
                 emit(null)
             }
     }
 
     suspend fun getUserProfile(userId: String): UserProfile? {
         return try {
-            com.example.data.WalkCrewLogger.logRead("users", userId, "fetching user profile")
+            // 1. Try local cache first for immediate offline availability
+            val localProfile = userProfileDao.getProfile(userId).map { it?.toModel() }.firstOrNull()
+            if (localProfile != null) {
+                com.example.data.WalkCrewLogger.logRead("users", userId, "fetched profile from local cache")
+                return localProfile
+            }
+
+            // 2. Fallback to Firestore if local is empty
+            com.example.data.WalkCrewLogger.logRead("users", userId, "fetching user profile from Firestore")
             val doc = db.collection("users").document(userId).get().await()
-            if (doc.exists()) doc.toObject(UserProfile::class.java) else null
+            val remoteProfile = if (doc.exists()) doc.toObject(UserProfile::class.java) else null
+            
+            // 3. Cache the remote result if found
+            remoteProfile?.let {
+                repositoryScope.launch { userProfileDao.insertProfile(it.toLocal()) }
+            }
+            
+            remoteProfile
         } catch (e: Exception) {
             com.example.data.WalkCrewLogger.logError("getUserProfile($userId)", e)
             null
