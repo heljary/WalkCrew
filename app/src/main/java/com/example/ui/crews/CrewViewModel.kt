@@ -68,15 +68,6 @@ class CrewViewModel(application: Application) : AndroidViewModel(application) {
     private val _showJoinSheet = MutableStateFlow(false)
     val showJoinSheet: StateFlow<Boolean> = _showJoinSheet.asStateFlow()
 
-    private val _showPaywall = MutableStateFlow(false)
-    val showPaywall: StateFlow<Boolean> = _showPaywall.asStateFlow()
-
-    private val _paywallReason = MutableStateFlow<String?>(null)
-    val paywallReason: StateFlow<String?> = _paywallReason.asStateFlow()
-
-    private val revenueCatManager = com.example.billing.RevenueCatManager.getInstance(application)
-    val isPremium: StateFlow<Boolean> = revenueCatManager.isPremium
-
     private var crewDetailsJob: Job? = null
     private var reactionsJob: Job? = null
 
@@ -197,11 +188,6 @@ class CrewViewModel(application: Application) : AndroidViewModel(application) {
 
     fun openCreateSheet() {
         _errorMessage.value = null
-        if (revenueCatManager.isAvailable && !isPremium.value && _crews.value.size >= 2) {
-            _paywallReason.value = "Free members can join up to 2 crews. Upgrade to Premium for unlimited crews!"
-            _showPaywall.value = true
-            return
-        }
         _showCreateSheet.value = true
     }
 
@@ -211,11 +197,6 @@ class CrewViewModel(application: Application) : AndroidViewModel(application) {
 
     fun openJoinSheet() {
         _errorMessage.value = null
-        if (revenueCatManager.isAvailable && !isPremium.value && _crews.value.size >= 2) {
-            _paywallReason.value = "Free members can join up to 2 crews. Upgrade to Premium for unlimited crews!"
-            _showPaywall.value = true
-            return
-        }
         _showJoinSheet.value = true
     }
 
@@ -223,25 +204,8 @@ class CrewViewModel(application: Application) : AndroidViewModel(application) {
         _showJoinSheet.value = false
     }
 
-    fun openPaywall(reason: String? = null) {
-        if (!revenueCatManager.isAvailable) return
-        _paywallReason.value = reason
-        _showPaywall.value = true
-    }
-
-    fun closePaywall() {
-        _showPaywall.value = false
-        _paywallReason.value = null
-    }
-
     fun createCrew(name: String, duration: String = "Weekly", onCreated: (CrewModel) -> Unit = {}) {
         val uid = currentUserId ?: return
-        if (revenueCatManager.isAvailable && !isPremium.value && _crews.value.size >= 2) {
-            _showCreateSheet.value = false
-            _paywallReason.value = "Free members can join up to 2 crews. Upgrade to Premium for unlimited crews!"
-            _showPaywall.value = true
-            return
-        }
         viewModelScope.launch {
             _isLoading.value = true
             _errorMessage.value = null
@@ -260,12 +224,6 @@ class CrewViewModel(application: Application) : AndroidViewModel(application) {
 
     fun joinCrewWithCode(code: String, onJoined: (CrewModel) -> Unit = {}) {
         val uid = currentUserId ?: return
-        if (revenueCatManager.isAvailable && !isPremium.value && _crews.value.size >= 2) {
-            _showJoinSheet.value = false
-            _paywallReason.value = "Free members can join up to 2 crews. Upgrade to Premium for unlimited crews!"
-            _showPaywall.value = true
-            return
-        }
         if (code.length != 6) {
             _errorMessage.value = "Invite code must be 6 characters"
             return

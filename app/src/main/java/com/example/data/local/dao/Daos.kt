@@ -23,6 +23,9 @@ interface CrewDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCrew(crew: LocalCrew)
 
+    @Query("DELETE FROM crews WHERE crewId = :crewId")
+    suspend fun deleteCrewById(crewId: String)
+
     @Query("DELETE FROM crews")
     suspend fun clearCrews()
 }

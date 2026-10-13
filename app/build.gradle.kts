@@ -102,8 +102,6 @@ dependencies {
   implementation(libs.androidx.navigation.compose)
   implementation(libs.androidx.health.connect)
   implementation(libs.androidx.work.runtime.ktx)
-  implementation(libs.revenuecat.purchases)
-  implementation("com.android.billingclient:billing:8.0.0")
   implementation(libs.androidx.room.ktx)
   implementation(libs.androidx.room.runtime)
   implementation(libs.coil.compose)

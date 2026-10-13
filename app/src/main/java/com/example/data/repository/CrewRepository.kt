@@ -201,14 +201,15 @@ class CrewRepository(private val context: Context) {
                 val profile = cachedProfiles[uid]
                 val stepGoal = profile?.dailyStepGoal?.takeIf { it > 0 } ?: 8000L
                 val streak = profile?.streakDays ?: 0
-                val memberSteps = log?.steps ?: profile?.todaySteps ?: 0L
+                val memberSteps = maxOf(log?.steps ?: 0L, profile?.todaySteps ?: 0L)
                 val statusText = if (memberSteps >= stepGoal) "Goal reached! 🎉" else "Walking today"
+                val memberTime = maxOf(log?.updatedAt?.toDate()?.time ?: 0L, profile?.lastUpdatedMillis ?: 0L)
                 LeaderboardMember(
                     userId = uid,
                     displayName = profile?.displayName?.ifBlank { "Walker" } ?: "Walker",
                     avatarColorIndex = profile?.avatarColorIndex ?: 0,
                     steps = memberSteps,
-                    lastUpdatedMillis = log?.updatedAt?.toDate()?.time ?: 0L,
+                    lastUpdatedMillis = memberTime,
                     isCurrentUser = (uid == currentUserId),
                     dailyStepGoal = stepGoal,
                     streakDays = streak,
@@ -406,6 +407,65 @@ class CrewRepository(private val context: Context) {
                 WalkCrewLogger.logError("joinCrewWithCode($code, $userId)", e)
                 Result.failure(e)
             }
+        }
+    }
+
+    suspend fun leaveCrew(crewId: String, userId: String): Result<Unit> {
+        return try {
+            WalkCrewLogger.logWrite("crews/$crewId", "leave", "user $userId leaving crew")
+            val crewRef = db.collection("crews").document(crewId)
+            crewRef.update(
+                mapOf(
+                    "members" to FieldValue.arrayRemove(userId),
+                    "updatedAt" to FieldValue.serverTimestamp()
+                )
+            ).await()
+            repositoryScope.launch {
+                crewDao.deleteCrewById(crewId)
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            WalkCrewLogger.logError("leaveCrew($crewId, $userId)", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun removeMember(crewId: String, memberId: String, ownerId: String): Result<Unit> {
+        return try {
+            WalkCrewLogger.logWrite("crews/$crewId", "removeMember", "owner $ownerId removing member $memberId")
+            val crewRef = db.collection("crews").document(crewId)
+            crewRef.update(
+                mapOf(
+                    "members" to FieldValue.arrayRemove(memberId),
+                    "updatedAt" to FieldValue.serverTimestamp()
+                )
+            ).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            WalkCrewLogger.logError("removeMember($crewId, $memberId)", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteCrew(crewId: String, ownerId: String, inviteCode: String? = null): Result<Unit> {
+        return try {
+            WalkCrewLogger.logWrite("crews/$crewId", "delete", "owner $ownerId deleting crew")
+            val crewRef = db.collection("crews").document(crewId)
+            crewRef.delete().await()
+            if (!inviteCode.isNullOrBlank()) {
+                try {
+                    db.collection("inviteCodes").document(inviteCode).delete().await()
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to delete invite code $inviteCode: ${e.message}")
+                }
+            }
+            repositoryScope.launch {
+                crewDao.deleteCrewById(crewId)
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            WalkCrewLogger.logError("deleteCrew($crewId)", e)
+            Result.failure(e)
         }
     }
 

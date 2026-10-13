@@ -122,11 +122,6 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun loadUserProfile(user: FirebaseUser) {
         viewModelScope.launch {
-            try {
-                com.example.billing.RevenueCatManager.getInstance(getApplication()).setAppUserId(user.uid)
-            } catch (e: Exception) {
-                // Ignore RevenueCat billing issues
-            }
 
             val profile = userRepository.getUserProfile(user.uid)
             if (profile != null && profile.displayName.isNotBlank()) {
@@ -360,11 +355,6 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun signOut() {
-        try {
-            com.example.billing.RevenueCatManager.getInstance(getApplication()).logOut()
-        } catch (e: Exception) {
-            // Ignore
-        }
         authRepository.signOut(viewModelScope) {
             _unauthScreen.value = UnauthScreen.WELCOME
             _uiState.value = AuthUiState.Unauthenticated

@@ -53,7 +53,6 @@ object WalkCrewDestinations {
     const val CREWS = "crews"
     const val PROFILE = "profile"
     const val CREW_DETAIL = "crew_detail/{crewId}"
-    const val PAYWALL = "paywall"
 }
 
 @Composable
@@ -230,16 +229,7 @@ private fun MainAppContent(
                     ProfileScreen(
                         viewModel = homeViewModel,
                         authViewModel = authViewModel,
-                        onSignOut = onSignOut,
-                        onNavigateToPaywall = {
-                            navController.navigate(WalkCrewDestinations.PAYWALL)
-                        }
-                    )
-                }
-
-                composable(WalkCrewDestinations.PAYWALL) {
-                    com.example.ui.paywall.PaywallScreen(
-                        onDismiss = { navController.popBackStack() }
+                        onSignOut = onSignOut
                     )
                 }
             }

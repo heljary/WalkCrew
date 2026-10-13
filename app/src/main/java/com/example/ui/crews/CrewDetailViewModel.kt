@@ -150,4 +150,43 @@ class CrewDetailViewModel(
             crewRepository.saveWeeklyHistory(crewId, history)
         }
     }
+
+    fun leaveCrew(onSuccess: () -> Unit = {}) {
+        viewModelScope.launch {
+            val result = crewRepository.leaveCrew(crewId, currentUserId)
+            if (result.isSuccess) {
+                _snackbarMessage.value = "Left crew successfully"
+                onSuccess()
+            } else {
+                _snackbarMessage.value = result.exceptionOrNull()?.message ?: "Failed to leave crew"
+            }
+        }
+    }
+
+    fun deleteCrew(onSuccess: () -> Unit = {}) {
+        val crew = _detailState.value.crew
+        if (crew.ownerId != currentUserId) return
+        viewModelScope.launch {
+            val result = crewRepository.deleteCrew(crewId, currentUserId, crew.inviteCode)
+            if (result.isSuccess) {
+                _snackbarMessage.value = "Crew deleted"
+                onSuccess()
+            } else {
+                _snackbarMessage.value = result.exceptionOrNull()?.message ?: "Failed to delete crew"
+            }
+        }
+    }
+
+    fun removeMember(memberId: String) {
+        val crew = _detailState.value.crew
+        if (crew.ownerId != currentUserId) return
+        viewModelScope.launch {
+            val result = crewRepository.removeMember(crewId, memberId, currentUserId)
+            if (result.isSuccess) {
+                _snackbarMessage.value = "Member removed"
+            } else {
+                _snackbarMessage.value = result.exceptionOrNull()?.message ?: "Failed to remove member"
+            }
+        }
+    }
 }

@@ -94,20 +94,13 @@ fun ProfileScreen(
     authViewModel: com.example.ui.auth.AuthViewModel? = null,
     photoViewModel: ProfilePhotoViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
     onSignOut: () -> Unit = {},
-    onDeleteAccount: () -> Unit = {},
-    onNavigateToPaywall: () -> Unit = {}
+    onDeleteAccount: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val userProfile by viewModel.userProfile.collectAsState()
     val userName = userProfile?.displayName?.ifBlank { null } ?: "Walker"
     val avatarColorIndex = userProfile?.avatarColorIndex ?: 2
     val healthState by viewModel.healthConnectState.collectAsState()
-    val revenueCatManager = remember { com.example.billing.RevenueCatManager.getInstance(context) }
-    val isPremium by revenueCatManager.isPremium.collectAsState()
-
-    LaunchedEffect(Unit) {
-        revenueCatManager.refreshCustomerInfo()
-    }
 
     val photoUiState by photoViewModel.uiState.collectAsState()
     val currentPhotoUrl = photoUiState.photoUrl ?: userProfile?.photoUrl
@@ -567,111 +560,6 @@ fun ProfileScreen(
             }
         }
 
-        // Plan & Entitlement Section (only shown when RevenueCat is configured; otherwise all users treated as free)
-        if (revenueCatManager.isAvailable) {
-            SectionHeader(title = "Plan & Membership")
-
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(
-                        width = 1.dp,
-                        color = if (isPremium) com.example.ui.theme.LimeAccent.copy(alpha = 0.5f) else WalkCrewTheme.extendedColors.divider,
-                        shape = CardShape
-                    )
-                    .testTag("membership_status_card"),
-                shape = CardShape,
-                color = MaterialTheme.colorScheme.surface,
-                shadowElevation = 0.dp
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = if (isPremium) "WalkCrew Premium" else "Free Plan",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = WalkCrewTheme.extendedColors.textPrimary
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = if (isPremium) "Entitlement: active ('premium')" else "Entitlement: none ('free')",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = if (isPremium) MaterialTheme.colorScheme.primary else WalkCrewTheme.extendedColors.textSecondary
-                            )
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .background(
-                                    color = if (isPremium) com.example.ui.theme.LimeAccent else MaterialTheme.colorScheme.surfaceVariant,
-                                    shape = com.example.ui.theme.ButtonShape
-                                )
-                                .padding(horizontal = 10.dp, vertical = 5.dp)
-                        ) {
-                            Text(
-                                text = if (isPremium) "PRO ACTIVE" else "FREE TIER",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = if (isPremium) com.example.ui.theme.DeepForest else WalkCrewTheme.extendedColors.textSecondary
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    Text(
-                        text = if (isPremium) {
-                            "You have full access to unlimited crews, custom themes, detailed step history, and ad-free experience."
-                        } else {
-                            "Free tier allows joining up to 2 crews. Upgrade to Premium for unlimited crews and custom styling."
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = WalkCrewTheme.extendedColors.textSecondary
-                    )
-
-                    Spacer(modifier = Modifier.height(18.dp))
-
-                    if (revenueCatManager.isConfigured) {
-                        if (isPremium) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                SecondaryButton(
-                                    text = "View Benefits",
-                                    onClick = onNavigateToPaywall,
-                                    modifier = Modifier.weight(1f),
-                                    testTag = "view_premium_benefits_btn"
-                                )
-                                SecondaryButton(
-                                    text = "Restore",
-                                    onClick = { revenueCatManager.restorePurchases() },
-                                    modifier = Modifier.weight(1f),
-                                    testTag = "restore_in_profile_btn"
-                                )
-                            }
-                        } else {
-                            PrimaryButton(
-                                text = "Upgrade to Pro",
-                                onClick = onNavigateToPaywall,
-                                modifier = Modifier.fillMaxWidth(),
-                                testTag = "upgrade_to_pro_button"
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
         // Account Sign Out Section
         SecondaryButton(
             text = "Sign Out",
@@ -777,6 +665,48 @@ fun ProfileScreen(
                         text = "Last Log Error: ${com.example.data.WalkCrewLogger.lastFirestoreError ?: "None (All healthy)"}",
                         style = MaterialTheme.typography.bodySmall,
                         color = if (com.example.data.WalkCrewLogger.lastFirestoreError != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                    )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Text(
+                        text = "📊 Today's Steps Firestore State",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    val stepLogRepo = remember { com.example.data.repository.StepLogRepository.getInstance(context) }
+                    val stepDebugInfo by stepLogRepo.debugInfo.collectAsState()
+                    Text(
+                        text = "Status: ${stepDebugInfo.status}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (stepDebugInfo.status.startsWith("Error")) MaterialTheme.colorScheme.error else WalkCrewTheme.extendedColors.textSecondary
+                    )
+                    Text(
+                        text = "Doc Path: ${stepDebugInfo.documentPath}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = WalkCrewTheme.extendedColors.textSecondary
+                    )
+                    Text(
+                        text = "Raw Value: ${stepDebugInfo.rawValue?.let { "$it steps" } ?: "None"}",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = WalkCrewTheme.extendedColors.textPrimary
+                    )
+                    val syncFormatted = remember(stepDebugInfo.lastSyncTimeMillis) {
+                        stepDebugInfo.lastSyncTimeMillis?.let {
+                            java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(it))
+                        } ?: "Never"
+                    }
+                    Text(
+                        text = "Last Sync: $syncFormatted",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = WalkCrewTheme.extendedColors.textSecondary
+                    )
+                    Text(
+                        text = "Served From: ${if (stepDebugInfo.isFromCache) "Cache (Offline)" else "Server"}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = WalkCrewTheme.extendedColors.textSecondary
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))

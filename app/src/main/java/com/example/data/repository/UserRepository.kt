@@ -180,21 +180,10 @@ class UserRepository(private val context: Context) {
     }
 
     suspend fun updateTodaySteps(userId: String, steps: Long): Result<Unit> {
-        return try {
-            com.example.data.WalkCrewLogger.logWrite("users", userId, "updating todaySteps to $steps")
-            val userRef = db.collection("users").document(userId)
-            userRef.set(
-                mapOf(
-                    "todaySteps" to steps,
-                    "updatedAt" to FieldValue.serverTimestamp()
-                ),
-                SetOptions.merge()
-            ).await()
-            Result.success(Unit)
-        } catch (e: Exception) {
-            com.example.data.WalkCrewLogger.logError("updateTodaySteps($userId)", e)
-            Result.failure(e)
-        }
+        val todayStr = java.time.LocalDate.now().toString()
+        val stepLogRepo = StepLogRepository.getInstance(context)
+        val result = stepLogRepo.recordStepsIfGreater(userId, todayStr, steps, "user_repository")
+        return if (result.isSuccess) Result.success(Unit) else Result.failure(result.exceptionOrNull() ?: Exception("Failed to update steps"))
     }
 
     suspend fun deleteUserAccount(userId: String): Result<Unit> {

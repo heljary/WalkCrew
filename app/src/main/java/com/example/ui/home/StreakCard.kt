@@ -79,11 +79,19 @@ fun StreakCard(
     weeklyHistory: List<DailyStepData>,
     dailyGoal: Long,
     currentStreakDays: Int,
+    lastCelebratedMilestone: Int = 0,
     modifier: Modifier = Modifier,
     onMilestoneShown: (Int) -> Unit = {}
 ) {
     var showMilestoneSheet by remember { mutableStateOf<Int?>(null) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    // Trigger celebration only when reaching a new milestone of 3, 7, 14, or 30 days
+    LaunchedEffect(currentStreakDays, lastCelebratedMilestone) {
+        if (currentStreakDays in listOf(3, 7, 14, 30) && currentStreakDays > lastCelebratedMilestone) {
+            showMilestoneSheet = currentStreakDays
+        }
+    }
 
     // Pulse animation for today's circle indicator
     val pulseAnim = remember { Animatable(1f) }
@@ -101,17 +109,6 @@ fun StreakCard(
         modifier = modifier
             .fillMaxWidth()
             .border(1.dp, WalkCrewTheme.extendedColors.divider, CardShape)
-            .clickable {
-                // If user has reached a milestone (3, 7, 14, 30) or wants to view celebration
-                val milestone = when {
-                    currentStreakDays >= 30 -> 30
-                    currentStreakDays >= 14 -> 14
-                    currentStreakDays >= 7 -> 7
-                    currentStreakDays >= 3 -> 3
-                    else -> 3 // preview
-                }
-                showMilestoneSheet = milestone
-            }
             .testTag("streak_card"),
         shape = CardShape,
         color = MaterialTheme.colorScheme.surface,

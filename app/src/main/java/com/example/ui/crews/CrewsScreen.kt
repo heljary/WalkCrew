@@ -136,8 +136,6 @@ fun CrewsScreen(
 
     val showCreateSheet by viewModel.showCreateSheet.collectAsState()
     val showJoinSheet by viewModel.showJoinSheet.collectAsState()
-    val showPaywall by viewModel.showPaywall.collectAsState()
-    val paywallReason by viewModel.paywallReason.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -545,13 +543,6 @@ fun CrewsScreen(
                 onJoin = { code ->
                     viewModel.joinCrewWithCode(code)
                 }
-            )
-        }
-
-        if (showPaywall) {
-            com.example.ui.paywall.PaywallScreen(
-                onDismiss = { viewModel.closePaywall() },
-                triggerReason = paywallReason
             )
         }
     }

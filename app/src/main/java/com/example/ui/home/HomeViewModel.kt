@@ -9,6 +9,8 @@ import com.example.data.UserStepStats
 import com.example.data.models.UserProfile
 import com.example.data.repository.AuthRepository
 import com.example.data.repository.CrewRepository
+import com.example.data.repository.HomeStepUiState
+import com.example.data.repository.StepLogRepository
 import com.example.data.repository.UserRepository
 import com.example.sensor.StepSensorManager
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,10 +23,13 @@ import kotlinx.coroutines.launch
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val stepRepository = StepRepository.getInstance(application)
+    private val stepLogRepository = StepLogRepository.getInstance(application)
     private val stepSensorManager = StepSensorManager.getInstance(application)
     private val authRepository = AuthRepository.getInstance(application)
     private val userRepository = UserRepository.getInstance(application)
     private val crewRepository = CrewRepository.getInstance(application)
+
+    val stepUiState: StateFlow<HomeStepUiState> = stepLogRepository.stepUiState
 
     val userStats: StateFlow<UserStepStats> = stepRepository.userStats
         .stateIn(
@@ -52,6 +57,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         get() = MutableStateFlow(_userProfile.value?.displayName?.ifBlank { null } ?: "Walker").asStateFlow()
 
     init {
+        val uid = authRepository.currentUserId
+        if (uid != null) {
+            stepLogRepository.startObservingUserSteps(uid, 8000L)
+        }
         loadUserProfile()
     }
 
@@ -61,6 +70,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             viewModelScope.launch {
                 userRepository.observeUserProfile(uid).collect { profile ->
                     _userProfile.value = profile
+                    val goal = profile?.dailyStepGoal ?: 8000L
+                    stepLogRepository.startObservingUserSteps(uid, goal)
                 }
             }
         }
@@ -75,8 +86,16 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun refreshSteps() {
+        val uid = authRepository.currentUserId
+        if (uid != null) {
+            val goal = _userProfile.value?.dailyStepGoal ?: 8000L
+            stepLogRepository.startObservingUserSteps(uid, goal)
+        }
         stepRepository.refreshSteps()
-        syncToFirestore()
+    }
+
+    fun retryFetchSteps() {
+        refreshSteps()
     }
 
     fun installHealthConnect() {
@@ -85,25 +104,18 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun addSimulatedSteps(amount: Long = 1000L) {
         stepRepository.addSimulatedSteps(amount)
-        syncToFirestore()
+    }
+
+    fun resetTestData() {
+        stepRepository.resetTestData()
     }
 
     fun resetAllProgress() {
         stepRepository.resetAllProgress()
-        syncToFirestore()
     }
 
     fun resetDemoSteps() {
         resetAllProgress()
-    }
-
-    private fun syncToFirestore() {
-        val uid = authRepository.currentUserId ?: return
-        val steps = userStats.value.steps
-        viewModelScope.launch {
-            userRepository.updateTodaySteps(uid, steps)
-            crewRepository.syncUserStepsToCrews(uid, steps)
-        }
     }
 
     fun updateDailyGoal(newGoal: Long) {
@@ -111,6 +123,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             userRepository.updateDailyGoal(uid, newGoal)
             _userProfile.value = _userProfile.value?.copy(dailyStepGoal = newGoal)
+            stepLogRepository.startObservingUserSteps(uid, newGoal)
         }
     }
 
@@ -139,5 +152,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             userRepository.saveUserProfile(updated)
             _userProfile.value = updated
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        stepLogRepository.stopObserving()
     }
 }

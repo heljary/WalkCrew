@@ -10,8 +10,39 @@ object FirebaseInitializer {
     private const val TAG = "FirebaseInitializer"
     const val FIRESTORE_DATABASE_ID = "ai-studio-android-walkcrew-f78bcbe3-d4e3-4ce3-b319-6ae08a7aead2"
 
+    @Volatile
+    private var firestoreInstance: FirebaseFirestore? = null
+
     fun getFirestore(): FirebaseFirestore {
-        return FirebaseFirestore.getInstance(FIRESTORE_DATABASE_ID)
+        return firestoreInstance ?: synchronized(this) {
+            firestoreInstance ?: run {
+                val app = try {
+                    FirebaseApp.getInstance()
+                } catch (e: Exception) {
+                    null
+                }
+                val db = if (app != null) {
+                    FirebaseFirestore.getInstance(app, FIRESTORE_DATABASE_ID)
+                } else {
+                    FirebaseFirestore.getInstance(FIRESTORE_DATABASE_ID)
+                }
+
+                try {
+                    val settings = com.google.firebase.firestore.FirebaseFirestoreSettings.Builder()
+                        .setLocalCacheSettings(
+                            com.google.firebase.firestore.PersistentCacheSettings.newBuilder().build()
+                        )
+                        .build()
+                    db.firestoreSettings = settings
+                    Log.d("WalkCrew", "Firestore offline persistence enabled for $FIRESTORE_DATABASE_ID")
+                } catch (e: Exception) {
+                    Log.d("WalkCrew", "Firestore settings note: ${e.message}")
+                }
+
+                firestoreInstance = db
+                db
+            }
+        }
     }
 
     fun ensureInitialized(context: Context): FirebaseApp {
@@ -48,7 +79,8 @@ object FirebaseInitializer {
     private fun logFirebaseInfo(app: FirebaseApp) {
         val options = app.options
         Log.d("WalkCrew", "Project ID: ${options.projectId}")
-        Log.d("WalkCrew", "Application ID: ${options.applicationId}")
+        Log.d("WalkCrew", "Application ID (Package): ${app.applicationContext.packageName}")
+        Log.d("WalkCrew", "App ID (Firebase): ${options.applicationId}")
         Log.d("WalkCrew", "API Key (suffix): ...${options.apiKey.takeLast(4)}")
         
         // Connectivity check
